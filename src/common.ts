@@ -12,6 +12,7 @@ type CCPageOptions = Exclude<Parameters<typeof openCookieClickerPage>[1], undefi
  */
 export type SPCC_t = {
     nineQuadrillionClicks: () => void,
+    nineQuadrillionLumps: (amount: number) => void,
     nextCheck: () => boolean,
     nextCheckState: 'inactive' | 'waiting' | 'check',
 };
@@ -40,6 +41,34 @@ function initBrowserUtilities() {
         CConnoisseur.clickBigCookie();
     };
 
+    /* Unlocks sugar lumps and gains the given amount of lumps,
+     * nine quadrillion times.
+     *
+     * Also unlocks all lump-related achievements
+     * (except harvesting a meaty sugar lump, if no grandmapocalypse technology is owned).
+     */
+    function nineQuadrillionLumps(amount: number) {
+        Game.cookies = Math.max(Game.cookies, 1e9);
+        Game.cookiesEarned = Math.max(Game.cookiesEarned, 1e9);
+        let gainedLumps = 2**(Math.ceil(Math.log2(amount)) + 53);
+        Game.lumps = Math.max(Game.lumps, gainedLumps);
+        Game.lumpsTotal = Math.max(Game.lumpsTotal, gainedLumps);
+
+        Game.Win('Hand-picked');
+        Game.Win('Sugar sugar');
+        Game.Win('Maillard reaction');
+        Game.Win('All-natural cane sugar');
+
+        let hasGrandmapocalypse = Game.Upgrades['One mind'].unlocked;
+        if(hasGrandmapocalypse) {
+            Game.Win('Sweetmeats');
+        }
+
+        Game.gainLumps(amount); // Trigger more achievements
+        Game.lumpT = 2**53; // Normalize the game state
+        Game.lumpCurrentType = 0;
+    }
+
     Game.registerHook('check', () => {
         if(window.SPCC.nextCheckState == 'waiting') {
             window.SPCC.nextCheckState = 'check';
@@ -66,7 +95,9 @@ function initBrowserUtilities() {
     }
 
     window.SPCC = {
+
         nineQuadrillionClicks,
+        nineQuadrillionLumps,
         nextCheck,
         nextCheckState: 'inactive',
     };
