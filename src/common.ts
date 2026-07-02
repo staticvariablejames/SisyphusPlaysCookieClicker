@@ -1,4 +1,6 @@
+import { promises as fsPromises } from 'fs';
 import { firefox } from 'playwright';
+import type { Page } from 'playwright';
 import { openCookieClickerPage, CCSave } from 'cookie-connoisseur';
 
 type CCPageOptions = Exclude<Parameters<typeof openCookieClickerPage>[1], undefined>;
@@ -11,6 +13,7 @@ type CCPageOptions = Exclude<Parameters<typeof openCookieClickerPage>[1], undefi
  * above each function definition.
  */
 export type SPCC_t = {
+    setCookies: (cookies: number) => void,
     nineQuadrillionClicks: () => void,
     nineQuadrillionLumps: (amount: number) => void,
     nextCheck: () => boolean,
@@ -22,12 +25,20 @@ export type SPCC_t = {
  * and is also why all other functions are defined inside the code of this function.
  */
 function initBrowserUtilities() {
+    /* Helper function.
+     * Sets Game.cookies to the given amount,
+     * unless Game.cookies is higher than the given amount.
+     */
+    function setCookies(cookies: number) {
+        Game.cookies = Math.max(Game.cookies, cookies);
+        Game.cookiesEarned = Math.max(Game.cookiesEarned, cookies); // Prevents CCTA
+    }
+
     // Simulates clicking the big cookie 2*53 times
     function nineQuadrillionClicks() {
         // The fundamental behavior of nine quadrillion clicks
         let gainedCookies = 2**(Math.ceil(Math.log2(Game.computedMouseCps)) + 53);
-        Game.cookies = Math.max(Game.cookies, gainedCookies);
-        Game.cookiesEarned = Math.max(Game.cookiesEarned, Game.cookies);
+        window.SPCC.setCookies(gainedCookies);
 
         // Other consequences
         Game.Win('Uncanny clicker'); // We click fast...
@@ -48,8 +59,7 @@ function initBrowserUtilities() {
      * (except harvesting a meaty sugar lump, if no grandmapocalypse technology is owned).
      */
     function nineQuadrillionLumps(amount: number) {
-        Game.cookies = Math.max(Game.cookies, 1e9);
-        Game.cookiesEarned = Math.max(Game.cookiesEarned, 1e9);
+        window.SPCC.setCookies(1e9);
         let gainedLumps = 2**(Math.ceil(Math.log2(amount)) + 53);
         Game.lumps = Math.max(Game.lumps, gainedLumps);
         Game.lumpsTotal = Math.max(Game.lumpsTotal, gainedLumps);
@@ -95,7 +105,7 @@ function initBrowserUtilities() {
     }
 
     window.SPCC = {
-
+        setCookies,
         nineQuadrillionClicks,
         nineQuadrillionLumps,
         nextCheck,
@@ -129,4 +139,14 @@ export async function openSisyphus(options: CCPageOptions) {
         await browser.close();
     });
     return page;
+}
+
+export async function writeSaveFile(page: Page, path: string) {
+    let save = await page.evaluate(() => {
+        let time = Game.time;
+        Game.time = 2**53; // This becomes Game.lastDate inside Game.WriteSave
+        return Game.WriteSave(1);
+        Game.time = time;
+    });
+    await fsPromises.writeFile(path, save);
 }
