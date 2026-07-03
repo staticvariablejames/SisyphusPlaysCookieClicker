@@ -21,9 +21,6 @@ let page = await openSisyphus({
             'Bingo center/Research facility',
             'Birthday cookie',
         ],
-        achievements: [
-            'Just plain lucky', // Save file normalization
-        ],
     },
 });
 
@@ -42,4 +39,19 @@ await exhaustPurchases();
 await page.pause();
 
 await writeSaveFile(page, './saves/sisyphus2-1.cki');
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ *                                Save File 2                                *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Now we purchase the Birthday cookie and level up all buildings
+ * (except Wizard Towers).
+ */
+await page.evaluate(() => window.SPCC.nineQuadrillionLumps(7));
+await page.evaluate(() => Game.Upgrades['Birthday cookie'].earn());
+await page.evaluate(() => window.SPCC.levelUpMostBuildings());
+await exhaustPurchases();
+await page.pause();
+
+await writeSaveFile(page, './saves/sisyphus2-2.cki');
+
 await page.close();

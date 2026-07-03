@@ -19,6 +19,7 @@ export type SPCC_t = {
     nineQuadrillionClicks: () => void,
     nineQuadrillionTicks: () => void,
     nineQuadrillionLumps: (amount: number) => void,
+    levelUpMostBuildings: () => void,
     roundOfPurchases: () => boolean,
     nextCheck: () => boolean,
     nextCheckState: 'inactive' | 'waiting' | 'check',
@@ -117,6 +118,18 @@ function initBrowserUtilities() {
         nineQuadrillionYears();
     }
 
+    /* Levels up all buildings to the maximum possible level (2**53),
+     * with the exception of Wizard Towers which are leveled up just to level 1.
+     */
+    function levelUpMostBuildings() {
+        for(let i in Game.Objects) {
+            if(Game.Objects[i].name != 'Wizard tower') {
+                Game.Objects[i].level = 2**53;
+            }
+            Game.Objects[i].levelUp(); // Triggers leveling up achievements
+        }
+    }
+
     /* Purchases all purchaseable upgrades and buildings,
      * but without actually spending cookies.
      */
@@ -155,10 +168,24 @@ function initBrowserUtilities() {
     });
     /* Waits for the next game tick
      * where the several once-every-five-seconds checks are performed.
-     * This is meant to be used like
+     * It will also wait for the minigames to load.
+     *
+     * This function meant to be used like
      *  page.waitForFunction(() => window.SPCC.nextCheck());
      */
     function nextCheck() {
+        let buildingsWithMinigames = [
+            Game.Objects['Farm'],
+            Game.Objects['Bank'],
+            Game.Objects['Temple'],
+            Game.Objects['Wizard tower'],
+        ];
+        for(let building of buildingsWithMinigames) {
+            if(building.level > 0 && !building.minigameLoaded) {
+                return false;
+            }
+        }
+
         if(window.SPCC.nextCheckState == 'inactive') {
             window.SPCC.nextCheckState = 'waiting';
             // Rounds (Game.T+1) up to next multiple of Game.fps*5
@@ -180,6 +207,7 @@ function initBrowserUtilities() {
         nineQuadrillionClicks,
         nineQuadrillionTicks,
         nineQuadrillionLumps,
+        levelUpMostBuildings,
         roundOfPurchases,
         nextCheck,
         nextCheckState: 'inactive',
@@ -221,6 +249,35 @@ export async function openSisyphus(options: CCPageOptions) {
 export async function writeSaveFile(page: Page, path: string) {
     let save = await page.evaluate(() => {
         Game.lumpT = 2**53;
+        if(Game.isMinigameReady(Game.Objects['Farm'])) {
+            let garden = Game.Objects['Farm'].minigame;
+            garden.harvestAll();
+            garden.nextStep = 2**53;
+            garden.nextSoil = 2**53;
+            garden.nextFreeze = 2**53;
+        }
+
+        if(Game.isMinigameReady(Game.Objects['Bank'])) {
+            let stockMarket = Game.Objects['Bank'].minigame;
+            for(let i = 0; i < stockMarket.goodsById.length; i++) {
+                let good = stockMarket.goodsById[i];
+                good.val = stockMarket.getRestingVal(i);
+                good.mode = 0;
+                good.d = 0;
+                good.dur = 10;
+                good.stock = 0;
+                good.last = 0;
+                (good as any).prev = 0; // TODO: fix @types/cookieclicker
+            }
+        }
+
+        if(Game.isMinigameReady(Game.Objects['Temple'])) {
+            Game.Objects['Temple'].minigame.swapT = 2**53;
+        }
+
+        if(Game.isMinigameReady(Game.Objects['Wizard tower'])) {
+            Game.Objects['Wizard tower'].minigame.magic = 0;
+        }
 
         let time = Game.time;
         Game.time = 2**53; // This becomes Game.lastDate inside Game.WriteSave
