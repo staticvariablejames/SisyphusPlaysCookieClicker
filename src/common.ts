@@ -15,6 +15,7 @@ type CCPageOptions = Exclude<Parameters<typeof openCookieClickerPage>[1], undefi
 export type SPCC_t = {
     limitIEEE754: (summand: number) => number,
     setCookies: (cookies: number) => void,
+    nineQuadrillionYears: () => void,
     nineQuadrillionClicks: () => void,
     nineQuadrillionTicks: () => void,
     nineQuadrillionLumps: (amount: number) => void,
@@ -45,6 +46,17 @@ function initBrowserUtilities() {
         Game.cookiesEarned = Math.max(Game.cookiesEarned, cookies); // Prevents CCTA
     }
 
+    /* Trigger effects that happen after waiting for a very long time.
+     *
+     * All other `nineQuadrillion` functions call this function,
+     * so there's no need to explicitly call it yourself.
+     */
+    function nineQuadrillionYears() {
+        Game.missedGoldenClicks = 2**53;
+        Game.Win('So much to do so much to see');
+        Game.Win('Just plain lucky');
+    }
+
     // Simulates clicking the big cookie 2*53 times
     function nineQuadrillionClicks() {
         let gainedCookies = limitIEEE754(Game.computedMouseCps);
@@ -52,8 +64,7 @@ function initBrowserUtilities() {
 
         // Other consequences
         Game.Win('Uncanny clicker'); // We click fast...
-        Game.Win('So much to do so much to see');
-        Game.Win('Just plain lucky'); // ...but it still takes a while for 2**53 clicks
+        nineQuadrillionYears(); // ...but it still takes a while for 2**53 clicks
         Game.cookieClicks = 2**53;
         Game.clicksThisSession = 2**53;
         Game.handmadeCookies = Math.max(Game.handmadeCookies, gainedCookies);
@@ -75,16 +86,16 @@ function initBrowserUtilities() {
                 limitIEEE754(Game.Objects[i].storedTotalCps*Game.globalCpsMult/Game.fps),
             );
         }
+
+        nineQuadrillionYears();
     }
 
-    /* Unlocks sugar lumps and gains the given amount of lumps,
-     * nine quadrillion times.
+    /* Gains the given amount of lumps, nine quadrillion times.
      *
      * Also unlocks all lump-related achievements
-     * (except harvesting a meaty sugar lump, if no grandmapocalypse technology is owned).
+     * (except harvesting a meaty sugar lump, if One mind is not purchased).
      */
     function nineQuadrillionLumps(amount: number) {
-        window.SPCC.setCookies(1e9);
         let gainedLumps = 2**(Math.ceil(Math.log2(amount)) + 53);
         Game.lumps = Math.max(Game.lumps, gainedLumps);
         Game.lumpsTotal = Math.max(Game.lumpsTotal, gainedLumps);
@@ -102,6 +113,8 @@ function initBrowserUtilities() {
         Game.gainLumps(amount); // Trigger more achievements
         Game.lumpT = 2**53; // Normalize the game state
         Game.lumpCurrentType = 0;
+
+        nineQuadrillionYears();
     }
 
     /* Purchases all purchaseable upgrades and buildings,
@@ -110,7 +123,7 @@ function initBrowserUtilities() {
     function roundOfPurchases() {
         let purchasedSomething = false;
 
-        // First buildings, as they might unlock upgrades
+        // First we buildings, as they might unlock upgrades
         for(let i in Game.Objects) {
             let obj = Game.Objects[i];
             while(obj.getPrice(1) <= Game.cookies) {
@@ -163,6 +176,7 @@ function initBrowserUtilities() {
     window.SPCC = {
         limitIEEE754,
         setCookies,
+        nineQuadrillionYears,
         nineQuadrillionClicks,
         nineQuadrillionTicks,
         nineQuadrillionLumps,
