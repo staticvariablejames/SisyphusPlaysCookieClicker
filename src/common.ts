@@ -99,8 +99,8 @@ function initBrowserUtilities() {
         } else if(window.SPCC.nextCheckState == 'waiting') {
             return false;
         } else { // nextCheckState == 'check'
-            return true;
             window.SPCC.nextCheckState = 'inactive';
+            return true;
         }
     }
 
