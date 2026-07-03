@@ -13,9 +13,12 @@ type CCPageOptions = Exclude<Parameters<typeof openCookieClickerPage>[1], undefi
  * above each function definition.
  */
 export type SPCC_t = {
+    limitIEEE754: (summand: number) => number,
     setCookies: (cookies: number) => void,
     nineQuadrillionClicks: () => void,
+    nineQuadrillionTicks: () => void,
     nineQuadrillionLumps: (amount: number) => void,
+    roundOfPurchases: () => boolean,
     nextCheck: () => boolean,
     nextCheckState: 'inactive' | 'waiting' | 'check',
 };
@@ -25,6 +28,14 @@ export type SPCC_t = {
  * and is also why all other functions are defined inside the code of this function.
  */
 function initBrowserUtilities() {
+    /* Helper function.
+     * Calculates limit (under IEEE754 floating-point arithmetic)
+     * of adding the given number to itself over and over again.
+     */
+    function limitIEEE754(summand: number) {
+        return 2**(53 + Math.ceil(Math.log2(summand)));
+    }
+
     /* Helper function.
      * Sets Game.cookies to the given amount,
      * unless Game.cookies is higher than the given amount.
@@ -36,9 +47,8 @@ function initBrowserUtilities() {
 
     // Simulates clicking the big cookie 2*53 times
     function nineQuadrillionClicks() {
-        // The fundamental behavior of nine quadrillion clicks
-        let gainedCookies = 2**(Math.ceil(Math.log2(Game.computedMouseCps)) + 53);
-        window.SPCC.setCookies(gainedCookies);
+        let gainedCookies = limitIEEE754(Game.computedMouseCps);
+        setCookies(gainedCookies);
 
         // Other consequences
         Game.Win('Uncanny clicker'); // We click fast...
@@ -51,6 +61,21 @@ function initBrowserUtilities() {
         // Trigger the vanilla click, just to make sure any other consequences take place
         CConnoisseur.clickBigCookie();
     };
+
+    /* Gains cookies (and other effects)
+     * corresponding 2**53 in-game ticks.
+     */
+    function nineQuadrillionTicks() {
+        Game.CalculateGains();
+        setCookies(limitIEEE754(Game.cookiesPs/Game.fps));
+
+        for(let i in Game.Objects) {
+            Game.Objects[i].totalCookies = Math.max(
+                Game.Objects[i].totalCookies,
+                limitIEEE754(Game.Objects[i].storedTotalCps*Game.globalCpsMult/Game.fps),
+            );
+        }
+    }
 
     /* Unlocks sugar lumps and gains the given amount of lumps,
      * nine quadrillion times.
@@ -79,6 +104,37 @@ function initBrowserUtilities() {
         Game.lumpCurrentType = 0;
     }
 
+    /* Purchases all purchaseable upgrades and buildings,
+     * but without actually spending cookies.
+     */
+    function roundOfPurchases() {
+        let purchasedSomething = false;
+
+        // First buildings, as they might unlock upgrades
+        for(let i in Game.Objects) {
+            let obj = Game.Objects[i];
+            while(obj.getPrice(1) <= Game.cookies) {
+                obj.buyFree(1);
+                purchasedSomething = true;
+
+                /* The following line unlocks upgrades and achievements.
+                 * It is called by buy, but not by buyFree, for some reason.
+                 */
+                if(obj.buyFunction) obj.buyFunction();
+            }
+        }
+
+        Game.RebuildUpgrades();
+        for(let upgrade of Game.UpgradesInStore) {
+            if(upgrade.isVaulted()) continue;
+            if(upgrade.unlocked && upgrade.getPrice() <= Game.cookies) {
+                upgrade.earn();
+                purchasedSomething = true;
+            }
+        }
+        return purchasedSomething;
+    }
+
     Game.registerHook('check', () => {
         if(window.SPCC.nextCheckState == 'waiting') {
             window.SPCC.nextCheckState = 'check';
@@ -105,9 +161,12 @@ function initBrowserUtilities() {
     }
 
     window.SPCC = {
+        limitIEEE754,
         setCookies,
         nineQuadrillionClicks,
+        nineQuadrillionTicks,
         nineQuadrillionLumps,
+        roundOfPurchases,
         nextCheck,
         nextCheckState: 'inactive',
     };
@@ -141,8 +200,14 @@ export async function openSisyphus(options: CCPageOptions) {
     return page;
 }
 
+/* Performs some save normalization
+ * (to ensure the save game stays the same across multiple runs of the script)
+ * and writes it to the given file.
+ */
 export async function writeSaveFile(page: Page, path: string) {
     let save = await page.evaluate(() => {
+        Game.lumpT = 2**53;
+
         let time = Game.time;
         Game.time = 2**53; // This becomes Game.lastDate inside Game.WriteSave
         return Game.WriteSave(1);
