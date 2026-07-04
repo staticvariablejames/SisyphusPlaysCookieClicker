@@ -229,6 +229,7 @@ export async function openSisyphus(options: CCPageOptions) {
         save = CCSave.fromObject(options.saveGame);
     }
     save.bakeryName = 'Sisyphus';
+    save.achievements.push("What's in a name");
     options.saveGame = save;
 
     let browser = await firefox.launch({headless: false});
