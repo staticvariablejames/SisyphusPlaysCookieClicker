@@ -85,4 +85,21 @@ await page.pause();
 console.log('Save 3: ' + await page.evaluate(() => window.Beautify(Game.cookies)));
 await writeSaveFile(page, './saves/sisyphus2-3.cki');
 
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ *                                Save File 4                                *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Stock market shenanigans.
+ */
+await exhaustPurchases();
+while(true) {
+    await page.evaluate(() => window.SPCC.nineQuadrillionStocks());
+    if(!await exhaustPurchases()) {
+        break;
+    }
+}
+await page.pause();
+
+console.log('Save 4: ' + await page.evaluate(() => window.Beautify(Game.cookies)));
+await writeSaveFile(page, './saves/sisyphus2-4.cki');
+
 await page.close();

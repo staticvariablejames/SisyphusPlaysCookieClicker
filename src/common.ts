@@ -20,6 +20,7 @@ export type SPCC_t = {
     nineQuadrillionClicks: () => void,
     nineQuadrillionTicks: () => void,
     nineQuadrillionWrinklers: () => void,
+    nineQuadrillionStocks: () => void,
     nineQuadrillionLumps: (amount: number) => void,
     levelUpMostBuildings: () => void,
     grindGrandmapocalypse: () => void,
@@ -180,6 +181,39 @@ function initBrowserUtilities() {
         setCookies(limitIEEE754(cookieGainPerWrinkler));
     }
 
+    /* Fills warehouses and sells them all nine quadrillion times.
+     */
+    function nineQuadrillionStocks() {
+        if(!Game.isMinigameReady(Game.Objects['Bank'])) return;
+
+        // All of these achievements come from buying and selling stocks
+        Game.Win('Initial public offering');
+        Game.Win('Rookie numbers');
+        Game.Win('No nobility in poverty');
+        Game.Win('Full warehouses');
+        Game.Win('Make my day');
+        Game.Win('Buy buy buy');
+        Game.Win('Liquid assets');
+        Game.Win('Gaseous assets');
+
+        let stockMarket = Game.Objects['Bank'].minigame;
+        stockMarket.brokers = Math.min(2**53, stockMarket.getMaxBrokers());
+        for(let good of stockMarket.goodsById) {
+            good.stock = stockMarket.getGoodMaxStock(good);
+            let profitIn$ = good.stock * stockMarket.getRestingVal(good.id);
+            let profitInCookies = profitIn$ * (Game as any).cookiesPsRawHighest; // TODO: fix @types/cookieclicker
+            /* The actual maximum value of the stock is around getRestingVal + 415k,
+             * but in the precision limit of the bank the 415k is a negligible amount,
+             * and (most importantly) because it gets multiplied by 10 * 2**53
+             * (which is the good's max stock)
+             * it will not get us past the next power of two.
+             * (the limitIEEE754 threshold).
+             */
+            stockMarket.profit = Math.max(stockMarket.profit, limitIEEE754(profitIn$));
+            setCookies(limitIEEE754(profitInCookies));
+        }
+    }
+
     /* Gains the given amount of lumps, nine quadrillion times.
      *
      * Also unlocks all lump-related achievements
@@ -325,6 +359,7 @@ function initBrowserUtilities() {
         nineQuadrillionClicks,
         nineQuadrillionTicks,
         nineQuadrillionWrinklers,
+        nineQuadrillionStocks,
         nineQuadrillionLumps,
         levelUpMostBuildings,
         grindGrandmapocalypse,
