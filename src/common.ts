@@ -126,7 +126,7 @@ function initBrowserUtilities() {
             if(Game.Objects[i].name != 'Wizard tower') {
                 Game.Objects[i].level = 2**53;
             }
-            Game.Objects[i].levelUp(); // Triggers leveling up achievements
+            (Game.Objects[i] as any).levelUp(1); // Triggers leveling up achievements
         }
     }
 
