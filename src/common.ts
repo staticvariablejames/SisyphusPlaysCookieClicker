@@ -15,11 +15,14 @@ type CCPageOptions = Exclude<Parameters<typeof openCookieClickerPage>[1], undefi
 export type SPCC_t = {
     limitIEEE754: (summand: number) => number,
     setCookies: (cookies: number) => void,
+    fillGardenWith: (plantKey: string) => void,
     nineQuadrillionYears: () => void,
     nineQuadrillionClicks: () => void,
     nineQuadrillionTicks: () => void,
+    nineQuadrillionWrinklers: () => void,
     nineQuadrillionLumps: (amount: number) => void,
     levelUpMostBuildings: () => void,
+    grindGrandmapocalypse: () => void,
     roundOfPurchases: () => boolean,
     nextCheck: () => boolean,
     nextCheckState: 'inactive' | 'waiting' | 'check',
@@ -45,6 +48,33 @@ function initBrowserUtilities() {
     function setCookies(cookies: number) {
         Game.cookies = Math.max(Game.cookies, cookies);
         Game.cookiesEarned = Math.max(Game.cookiesEarned, cookies); // Prevents CCTA
+    }
+
+    /* Helper function.
+     * Fills the garden with the specified plant,
+     * sets the soil to clay,
+     * and force a recalculation of effects.
+     *
+     * Assumes a 6x6 garden.
+     * Silently fails if the garden minigame is not loaded.
+     */
+    function fillGardenWith(plantKey: string) {
+        if(!Game.isMinigameReady(Game.Objects['Farm'])) return;
+        let garden = Game.Objects['Farm'].minigame;
+        let plantId = garden.plants[plantKey].id;
+        for(let i = 0; i < 6; i++)
+        for(let j = 0; j < 6; j++) {
+            garden.plot[i][j][0] = plantId + 1; // Why "+1", Orteil??
+            garden.plot[i][j][1] = garden.plants[plantKey].mature;
+        }
+        garden.soil = garden.soils['clay'].id;
+        garden.freeze = 0;
+        garden.computeStepT();
+        garden.nextStep = Date.now() + garden.stepT * 1000;
+
+        // Visual aids
+        garden.buildPlot();
+        garden.buildPanel();
     }
 
     /* Trigger effects that happen after waiting for a very long time.
@@ -88,7 +118,66 @@ function initBrowserUtilities() {
             );
         }
 
+        if(Game.elderWrath > 0) { // We're in the grandmapocalypse
+            for(let wrinkler of Game.wrinklers) {
+                if(wrinkler.phase < 2) continue;
+                wrinkler.sucked = Math.max(
+                    wrinkler.sucked,
+                    limitIEEE754(Game.cookiesPs/Game.fps*Game.cpsSucked),
+                );
+                // Game.cpsSucked is also updated by Game.CalculateGains()
+            }
+        }
+
         nineQuadrillionYears();
+    }
+
+    /* Spawns wrinklers,
+     * fills them to the maximum possible amount of cookies,
+     * and pops them.
+     * 2**53 times.
+     */
+    function nineQuadrillionWrinklers() {
+        grindGrandmapocalypse();
+
+        // Go to the latest stage of the grandmapocalypse
+        Game.pledgeT = 1;
+        Game.UpdateGrandmapocalypse();
+        Game.elderWrath = 3;
+
+        for(let i = 0; i < Game.getWrinklersMax(); i++) {
+            CConnoisseur.spawnWrinkler(i);
+            Game.wrinklers[i].type = 1; // Shiny
+        }
+        nineQuadrillionTicks(); // Fill the wrinklers to the max
+
+        // Swap Skruuia in
+        let currentDiamondSlotSpirit: number | null = null;
+        if(Game.isMinigameReady(Game.Objects['Temple'])) {
+            currentDiamondSlotSpirit = Game.Objects['Temple'].minigame.slot[0];
+            Game.Objects['Temple'].minigame.slot[0] =
+                Game.Objects['Temple'].minigame.gods['scorn'].id;
+            // Technically we might end up with two Skruuias, but that's fine
+        }
+
+        // Calculates the cookie gain per wrinkler
+        let previousGameCookies = Game.cookies;
+        Game.cookies = 0;
+        CConnoisseur.popWrinkler(0);
+        let cookieGainPerWrinkler = Game.cookies;
+        Game.cookies = previousGameCookies;
+
+
+        // Swap Skruuia out
+        if(currentDiamondSlotSpirit != null) {
+            Game.Objects['Temple'].minigame.slot[0] = currentDiamondSlotSpirit;
+        }
+
+        /* If we had started with a very large Game.cookies,
+         * it might be possible that limitIEEE754(cookieGainPerWrinkler) is smaller than it,
+         * so we had to do that small dance with previousGameCookies above.
+         */
+        setCookies(limitIEEE754(cookieGainPerWrinkler));
     }
 
     /* Gains the given amount of lumps, nine quadrillion times.
@@ -127,7 +216,35 @@ function initBrowserUtilities() {
                 Game.Objects[i].level = 2**53;
             }
             (Game.Objects[i] as any).levelUp(1); // Triggers leveling up achievements
+            // TODO: fix @types/cookieclicker
         }
+    }
+
+    // Gets all grandmapocalypse-related upgrades and achievements.
+    function grindGrandmapocalypse() {
+        Game.Upgrades['Bingo center/Research facility'].earn();
+        for(let i in Game.Upgrades) {
+            if(Game.Upgrades[i].pool == 'tech') {
+                Game.Upgrades[i].earn();
+            }
+        }
+        Game.Upgrades['Sacrificial rolling pins'].earn();
+
+        Game.Win('Grandmapocalypse');
+        Game.Win('Wrath cookie');
+        Game.Win('Elder nap');
+        Game.Win('Elder slumber');
+        Game.Win('Elder calm');
+        Game.Win('Wrinkler poker');
+
+        Game.wrinklersPopped = 2**53;
+        CConnoisseur.spawnWrinkler(0);
+        Game.wrinklers[0].type = 1; // Shiny
+        CConnoisseur.popWrinkler(0);
+        Game.Upgrades['Wrinkler ambergris'].unlock();
+
+        Game.pledges = 2**53;
+        Game.Upgrades['Elder Pledge'].earn(); // Exits the grandmapocalypse
     }
 
     /* Purchases all purchaseable upgrades and buildings,
@@ -152,7 +269,7 @@ function initBrowserUtilities() {
 
         Game.RebuildUpgrades();
         for(let upgrade of Game.UpgradesInStore) {
-            if(upgrade.isVaulted()) continue;
+            if(upgrade.isVaulted() || upgrade.pool == 'toggle' || upgrade.pool == 'tech') continue;
             if(upgrade.unlocked && upgrade.getPrice() <= Game.cookies) {
                 upgrade.earn();
                 purchasedSomething = true;
@@ -203,11 +320,14 @@ function initBrowserUtilities() {
     window.SPCC = {
         limitIEEE754,
         setCookies,
+        fillGardenWith,
         nineQuadrillionYears,
         nineQuadrillionClicks,
         nineQuadrillionTicks,
+        nineQuadrillionWrinklers,
         nineQuadrillionLumps,
         levelUpMostBuildings,
+        grindGrandmapocalypse,
         roundOfPurchases,
         nextCheck,
         nextCheckState: 'inactive',
@@ -250,6 +370,7 @@ export async function openSisyphus(options: CCPageOptions) {
 export async function writeSaveFile(page: Page, path: string) {
     let save = await page.evaluate(() => {
         Game.lumpT = 2**53;
+        Game.pledgeT = 0;
         if(Game.isMinigameReady(Game.Objects['Farm'])) {
             let garden = Game.Objects['Farm'].minigame;
             garden.harvestAll();

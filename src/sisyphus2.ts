@@ -24,13 +24,24 @@ let page = await openSisyphus({
     },
 });
 
+/* Repeats the cycle of purchasing things and waiting a quadrillion ticks
+ * until there are no more purchases to be made.
+ * If no purchases were made in the first place,
+ * return false.
+ */
 async function exhaustPurchases() {
-    let madeNewPurchases = true;
-    while(madeNewPurchases) {
+    let madePurchases = false;
+    while(true) {
         await page.evaluate(() => window.SPCC.nineQuadrillionTicks());
         await page.waitForFunction(() => window.SPCC.nextCheck());
-        madeNewPurchases = await page.evaluate(() => window.SPCC.roundOfPurchases());
+        let madeNewPurchases = await page.evaluate(() => window.SPCC.roundOfPurchases());
+        if(madeNewPurchases) {
+            madePurchases = true;
+        } else {
+            break;
+        }
     }
+    return madePurchases;
 }
 
 await page.evaluate(() => {Game.Earn(15); Game.Objects['Cursor'].buy(1);});
@@ -38,6 +49,7 @@ await page.waitForFunction(() => window.SPCC.nextCheck());
 await exhaustPurchases();
 await page.pause();
 
+console.log('Save 1: ' + await page.evaluate(() => window.Beautify(Game.cookies)));
 await writeSaveFile(page, './saves/sisyphus2-1.cki');
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -52,6 +64,25 @@ await page.evaluate(() => window.SPCC.levelUpMostBuildings());
 await exhaustPurchases();
 await page.pause();
 
+console.log('Save 2: ' + await page.evaluate(() => window.Beautify(Game.cookies)));
 await writeSaveFile(page, './saves/sisyphus2-2.cki');
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ *                                Save File 3                                *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Grandmapocalypse and wrinklers.
+ */
+await page.evaluate(() => window.SPCC.grindGrandmapocalypse());
+// await page.evaluate(() => window.SPCC.fillGardenWith('wrinklegill')); // Makes no difference here
+while(true) {
+    await page.evaluate(() => window.SPCC.nineQuadrillionWrinklers());
+    if(!await exhaustPurchases()) {
+        break;
+    }
+}
+await page.pause();
+
+console.log('Save 3: ' + await page.evaluate(() => window.Beautify(Game.cookies)));
+await writeSaveFile(page, './saves/sisyphus2-3.cki');
 
 await page.close();
