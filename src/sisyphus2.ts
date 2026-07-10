@@ -1,4 +1,4 @@
-/* This creates the save file obtained in Sisyphus Plays Cookie Clicker II: Risk-Free Stocks
+/* This creates the save files for Sisyphus Plays Cookie Clicker II: Sisyphus the Quindecillionaire.
  * (<https://github.com/staticvariablejames/CookieMusings/blob/master/sisyphus-plays-cookie-clicker-2-stock-market.md>).
  *
  * We are not allowed to ascend, close the game, or use Gambler's Fever Dream.
