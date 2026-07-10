@@ -306,6 +306,7 @@ function initBrowserUtilities() {
          * so we had to do that small dance with previousGameCookies above.
          */
         setCookies(limitIEEE754(cookieGainPerWrinkler));
+        Game.cookiesSucked = Math.max(Game.cookiesSucked, limitIEEE754(cookieGainPerWrinkler));
     }
 
     /* Fills warehouses and sells them all nine quadrillion times.
