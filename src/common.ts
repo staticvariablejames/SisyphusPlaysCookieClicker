@@ -642,6 +642,11 @@ export async function writeSaveFile(page: Page, path: string) {
         Game.lumpT = 2**53;
         Game.pledgeT = 0;
         Game.researchT = 0;
+
+        for(let buffKey in Game.buffs) {
+            Game.buffs[buffKey].time = Game.buffs[buffKey].maxTime;
+        }
+
         if(Game.isMinigameReady(Game.Objects['Farm'])) {
             let garden = Game.Objects['Farm'].minigame;
             garden.harvestAll();
