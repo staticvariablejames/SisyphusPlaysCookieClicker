@@ -104,4 +104,72 @@ await page.pause();
 console.log('Save 4: ' + await page.evaluate(() => window.Beautify(Game.cookies)));
 await writeSaveFile(page, './saves/sisyphus2-4.cki');
 
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ *                                Save File 5                                *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Achievement grinding of several kinds,
+ * and combos.
+ */
+await page.evaluate(() => {
+    window.SPCC.seasonsGrind();
+    window.SPCC.miscellaneousGrind();
+    window.SPCC.nineQuadrillionLumps(10);
+
+    window.SPCC.fillGardenWith({plant: 'goldenClover', plant2: 'nursetulip'});
+    window.SPCC.fillGardenWith({plant:'whiskerbloom', buds: true});
+
+    let pantheon = Game.Objects['Temple'].minigame;
+    pantheon.slotGod(pantheon.gods['mother'], 0);
+    l('templeSlot0')!.appendChild(l(`templeGod${pantheon.slot[0]}`)!);
+    pantheon.slotGod(pantheon.gods['asceticism'], 1);
+    l('templeSlot1')!.appendChild(l(`templeGod${pantheon.slot[1]}`)!);
+    // Simulates a perfectly-timed Cyclius
+    Game.registerHook('cps', cps => cps * 1.15);
+
+    Game.Objects['Temple'].minigame.slotGod(Game.Objects['Temple'].minigame.gods['mother'], 0);
+
+    /* Remove the latest stage of the grandmapocalypse, and its effects;
+     * we do this on this save only,
+     * so we have access to golden cookies and wrinklers at the same time.
+     */
+    Game.elderWrath = 2;
+    Game.Achievements['Grandmapocalypse'].won = 0;
+    Game.Achievements['Elder nap'].won = 0;
+    Game.Achievements['Elder slumber'].won = 0;
+    Game.Achievements['Elder calm'].won = 0;
+    Game.Upgrades['Elder Pact'].bought = 0
+    Game.Upgrades['Sacrificial rolling pins'].bought = 0;
+    Game.Upgrades['Sacrificial rolling pins'].unlocked = 0;
+    Game.UpdateGrandmapocalypse();
+    Game.RebuildUpgrades();
+
+    Game.Objects['Wizard tower'].amount = 321;
+
+    (Game as any).takeLoan(1); // TODO fix @types/cookieclicker
+    (Game as any).takeLoan(2);
+    (Game as any).takeLoan(3);
+});
+
+while(true) {
+    await page.evaluate(() => {
+        Game.killBuffs();
+        window.SPCC.gainEndlessFrenzy();
+        Game.gainBuff('sugar blessing', 86400, 1);
+        window.SPCC.gainBuildingSpecial();
+        window.SPCC.gainBuildingSpecial();
+        window.SPCC.ultimateFtHoFCombo();
+        Game.gainBuff('blood frenzy', Math.ceil(6 * window.SPCC.buffTimeModifier()), 666);
+
+        window.SPCC.nineQuadrillionWrinklers();
+        Game.elderWrath = 2;
+    });
+    if(!await exhaustPurchases()) {
+        break;
+    }
+}
+
+await page.pause();
+console.log('Save 5: ' + await page.evaluate(() => window.Beautify(Game.cookies)));
+await writeSaveFile(page, './saves/sisyphus2-5.cki');
+
 await page.close();
