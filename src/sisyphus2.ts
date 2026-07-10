@@ -74,7 +74,8 @@ await writeSaveFile(page, './saves/sisyphus2-2.cki');
  * Grandmapocalypse and wrinklers.
  */
 await page.evaluate(() => window.SPCC.grindGrandmapocalypse());
-// await page.evaluate(() => window.SPCC.fillGardenWith('wrinklegill')); // Makes no difference here
+// Makes no difference here
+// await page.evaluate(() => window.SPCC.fillGardenWith({plant: 'wrinklegill'}));
 while(true) {
     await page.evaluate(() => window.SPCC.nineQuadrillionWrinklers());
     if(!await exhaustPurchases()) {

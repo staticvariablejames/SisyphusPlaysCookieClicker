@@ -5,6 +5,12 @@ import { openCookieClickerPage, CCSave } from 'cookie-connoisseur';
 
 type CCPageOptions = Exclude<Parameters<typeof openCookieClickerPage>[1], undefined>;
 
+type FillGardenOptions = {
+    plant: string,
+    plant2?: string,
+    buds?: boolean,
+};
+
 /* Sisyphus Plays Cookie Clicker; aggregates helper functions.
  * The function initBrowserUtilities below creates an object window.SPCC with this type.
  * openSisyphus further down runs this function inside a Playwright Page.
@@ -15,7 +21,11 @@ type CCPageOptions = Exclude<Parameters<typeof openCookieClickerPage>[1], undefi
 export type SPCC_t = {
     limitIEEE754: (summand: number) => number,
     setCookies: (cookies: number) => void,
-    fillGardenWith: (plantKey: string) => void,
+    fillGardenWith: (options: FillGardenOptions) => void,
+    buffTimeModifier: () => number,
+    gainEndlessFrenzy: () => void,
+    gainBuildingSpecial: () => boolean,
+    ultimateFtHoFCombo: () => void,
     nineQuadrillionYears: () => void,
     nineQuadrillionClicks: () => void,
     nineQuadrillionTicks: () => void,
@@ -24,6 +34,8 @@ export type SPCC_t = {
     nineQuadrillionLumps: (amount: number) => void,
     levelUpMostBuildings: () => void,
     grindGrandmapocalypse: () => void,
+    seasonsGrind: () => void,
+    miscellaneousGrind: () => void,
     roundOfPurchases: () => boolean,
     nextCheck: () => boolean,
     nextCheckState: 'inactive' | 'waiting' | 'check',
@@ -56,26 +68,142 @@ function initBrowserUtilities() {
      * sets the soil to clay,
      * and force a recalculation of effects.
      *
+     * If two plants are specified,
+     * plants the first and the second plant with alternated rows.
+     *
      * Assumes a 6x6 garden.
      * Silently fails if the garden minigame is not loaded.
      */
-    function fillGardenWith(plantKey: string) {
+    function fillGardenWith(options: FillGardenOptions) {
+        if(!options.plant2) {
+            options.plant2 = options.plant;
+        }
         if(!Game.isMinigameReady(Game.Objects['Farm'])) return;
         let garden = Game.Objects['Farm'].minigame;
-        let plantId = garden.plants[plantKey].id;
+        let plantId1 = garden.plants[options.plant].id;
+        let plantId2 = garden.plants[options.plant2].id;
         for(let i = 0; i < 6; i++)
-        for(let j = 0; j < 6; j++) {
-            garden.plot[i][j][0] = plantId + 1; // Why "+1", Orteil??
-            garden.plot[i][j][1] = garden.plants[plantKey].mature;
+        for(let j = 0; j < 3; j++) {
+            garden.plot[i][2*j  ][0] = plantId1 + 1; // Why "+1", Orteil??
+            garden.plot[i][2*j+1][0] = plantId2 + 1;
+            if(options.buds) {
+                garden.plot[i][2*j  ][1] = 0;
+                garden.plot[i][2*j+1][1] = 0;
+            } else {
+                garden.plot[i][2*j  ][1] = garden.plants[options.plant].mature;
+                garden.plot[i][2*j+1][1] = garden.plants[options.plant2].mature;
+            }
         }
         garden.soil = garden.soils['clay'].id;
         garden.freeze = 0;
         garden.computeStepT();
         garden.nextStep = Date.now() + garden.stepT * 1000;
 
+        if(!options.buds) {
+            garden.computeBoostPlot();
+        }
+        garden.computeEffs();
+
         // Visual aids
         garden.buildPlot();
         garden.buildPanel();
+    }
+
+    // Computes the `effectDurMod` variable from Game.shimmerTypes.golden.popFunc.
+    function buffTimeModifier() {
+        let modifier = 1;
+        /* The following few lines were basically copied from the game;
+         * they should really be in a separate function.
+         */
+        if (Game.Has('Get lucky')) modifier *= 2;
+        if (Game.Has('Lasting fortune')) modifier *= 1.1;
+        if (Game.Has('Lucky digit')) modifier *= 1.01;
+        if (Game.Has('Lucky number')) modifier *= 1.01;
+        if (Game.Has('Green yeast digestives')) modifier *= 1.01;
+        if (Game.Has('Lucky payout')) modifier *= 1.01;
+        modifier *= 1+Game.auraMult('Epoch Manipulator')*0.05;
+        modifier *= Game.eff('goldenCookieEffDur', undefined as any); // TODO: fix @types/cookieclicker
+        if (Game.hasGod) {
+            let spiritLevel = Game.hasGod('decadence');
+            if (spiritLevel==1) modifier *= 1.07;
+            else if (spiritLevel==2) modifier *= 1.05;
+            else if (spiritLevel==3) modifier *= 1.02;
+        }
+
+        return modifier;
+    }
+
+    /* Grants an endless frenzy to the player.
+     * Achievable with a maxed out garden, or with unreasonable luck.
+     */
+    function gainEndlessFrenzy() {
+        Game.gainBuff('frenzy', Math.ceil(2**54/Game.fps), 7);
+    }
+
+    /* Adds a building special
+     * for the building with the most buildings that does not yet have an active building special.
+     */
+    function gainBuildingSpecial() {
+        function hasBuildingSpecial(id: number) {
+            for(let i in Game.buffs) {
+                if(Game.buffs[i].type.name == 'building buff' && Game.buffs[i].arg2 == id) {
+                   return true;
+               }
+            }
+            return false;
+        }
+        let highest = -1;
+        for(let i = 0; i < (Game.ObjectsById.length as any); i++) { // TODO: fix @types/cookieclicker
+            if(hasBuildingSpecial(i)) continue;
+            if(highest == -1) {
+                highest = i;
+            } else if(Game.ObjectsById[i].amount > Game.ObjectsById[highest].amount) {
+                highest = i;
+            }
+        }
+
+        if(highest == -1) {
+            console.log('Maximum building specials reached');
+            return false;
+        } else {
+            let buffPower = Game.ObjectsById[highest].amount/10 + 1;
+
+            Game.gainBuff('building buff', Math.ceil(30 * buffTimeModifier()), buffPower, highest);
+            return true;
+        }
+    }
+
+    /* Adds building specials corresponding to the highest possible number of FtHoF casts
+     * that can be performed with two sugar lumps and the current technology.
+     */
+    function ultimateFtHoFCombo() {
+        if(Game.Objects['Wizard tower'].level != 1) {
+            console.warn('Unimplemented'); // TODO
+            return false;
+        }
+        let maxTowers = Game.Objects['Wizard tower'].highest;
+
+        let casts;
+        if(maxTowers <= 20) {
+            // Cannot gain any buffs
+            casts = 0;
+        } else if(maxTowers <= 306) {
+            // Can cast once but not twice; using two sugar lumps gives three casts in total
+            casts = 3;
+        } else if(maxTowers <= 3737) {
+            // Can cast twice but not three times
+            casts = 6;
+        } else {
+            // Triple-cast, but only for the first cast
+            casts = 7;
+        }
+        for(let i = 0; i < casts; i++) {
+            if(!gainBuildingSpecial()) {
+                return false;
+            }
+        }
+        return true;
+        // TODO: also account for Supreme Intellect, and make this not hardcoded
     }
 
     /* Trigger effects that happen after waiting for a very long time.
@@ -139,12 +267,11 @@ function initBrowserUtilities() {
      * 2**53 times.
      */
     function nineQuadrillionWrinklers() {
-        grindGrandmapocalypse();
-
-        // Go to the latest stage of the grandmapocalypse
-        Game.pledgeT = 1;
-        Game.UpdateGrandmapocalypse();
-        Game.elderWrath = 3;
+        // Ensure we are in the grandmapocalypse
+        if(Game.elderWrath == 0) {
+            grindGrandmapocalypse();
+            Game.elderWrath = 3;
+        }
 
         for(let i = 0; i < Game.getWrinklersMax(); i++) {
             CConnoisseur.spawnWrinkler(i);
@@ -228,6 +355,7 @@ function initBrowserUtilities() {
         Game.Win('Sugar sugar');
         Game.Win('Maillard reaction');
         Game.Win('All-natural cane sugar');
+        // We get Sweetmeats (harvest a meaty lump) in grindGrandmapocalypse()
 
         let hasGrandmapocalypse = Game.Upgrades['One mind'].unlocked;
         if(hasGrandmapocalypse) {
@@ -270,6 +398,7 @@ function initBrowserUtilities() {
         Game.Win('Elder slumber');
         Game.Win('Elder calm');
         Game.Win('Wrinkler poker');
+        Game.Win('Sweetmeats'); // We did not get this one in nineQuadrillionLumps
 
         Game.wrinklersPopped = 2**53;
         CConnoisseur.spawnWrinkler(0);
@@ -279,6 +408,105 @@ function initBrowserUtilities() {
 
         Game.pledges = 2**53;
         Game.Upgrades['Elder Pledge'].earn(); // Exits the grandmapocalypse
+    }
+
+    function seasonsGrind() {
+        for(let upgradeName of Game.seasonDrops) {
+            Game.Upgrades[upgradeName].unlock();
+        }
+
+        Game.Upgrades['A festive hat'].earn();
+        Game.specialTab = 'santa';
+        for(let i = 0; i < 14; i++) Game.UpgradeSanta();
+        Game.reindeerClicked = 2**53;
+        let reindeer = new Game.shimmer('reindeer');
+        reindeer.pop(undefined as any); // TODO: fix @types/cookieclicker
+        Game.Win('Eldeer');
+        Game.Win("Baby it's old outside");
+
+        /* Easter eggs are unlocked by the for-loop above,
+         * but the check in Game.Logic only happens if the season is 'easter'
+         */
+        Game.Win('The hunt is on');
+        Game.Win('Egging on');
+        Game.Win('Mass Easteria');
+        if(Game.Has('Legacy')) {
+            Game.Win('Hide & seek champion'); // We only purchase Chocolate egg before ascending
+        }
+    }
+
+    /* Maximizes all sorts of counters and miscellanea in the game,
+     * and grants related achievements.
+     *
+     * See also postAscensionsMiscellaneousGrind below.
+     */
+    function miscellaneousGrind() {
+        // Easy-to-get achievements
+        Game.Win('Just wrong');
+        Game.Win('Early bird');
+        Game.Win('Fading luck');
+        Game.Win('Cookie-dunker');
+        Game.Win('Tiny cookie');
+        Game.Win('Here you go');
+        Game.Win('Tabloid addiction');
+        Game.Win('Stifling the press');
+        Game.Win('Olden days');
+        Game.Win('In her likeness');
+        Game.Win('God complex');
+
+        Game.goldenClicks = 2**53;
+        Game.goldenClicksLocal = 2**53;
+        Game.missedGoldenClicks = 2**53;
+        let gc = new Game.shimmer('golden',{noWrath:true});
+        (gc as any).force = 'blab'; // TODO: fix @types/cookieclicker
+        gc.spawnLead = 1;
+        gc.pop(undefined as any); // Triggers GC-related achievements; TODO: fix @types/cookieclicker
+
+        if(Game.isMinigameReady(Game.Objects['Farm'])) {
+            let garden = Game.Objects['Farm'].minigame;
+            garden.harvests = 2**53;
+            garden.harvestsTotal = 2**53;
+            Game.Win('Botany enthusiast');
+            Game.Win('Green, aching thumb');
+            garden.convertTimes = 2**53;
+            Game.Win('In the garden of Eden (baby)');
+            Game.Win('Keeper of the conservatory');
+            Game.Win('Seedless to nay');
+            for(let i in garden.plants) {
+                garden.unlockSeed(garden.plants[i]);
+            }
+
+            let gardenDrops = [
+                'Elderwort biscuits',
+                'Bakeberry cookies',
+                'Duketater cookies',
+                'Green yeast digestives',
+                'Fern tea',
+                'Ichor syrup',
+                'Wheat slims',
+            ];
+            for(let drop of gardenDrops) {
+                Game.Upgrades[drop].unlock();
+            }
+
+        }
+
+        if(Game.isMinigameReady(Game.Objects['Bank'])) {
+            nineQuadrillionStocks(); // TODO this also gains cookies, maybe refactor that portion out?
+            Game.Objects['Bank'].minigame.officeLevel = 5;
+            Game.Win('Pyramid scheme');
+        }
+
+        if(Game.isMinigameReady(Game.Objects['Wizard tower'])) {
+            Game.Objects['Wizard tower'].minigame.spellsCast = 2**53;
+            Game.Objects['Wizard tower'].minigame.spellsCastTotal = 2**53;
+            Game.Win('Bibbidi-bobbidi-boo');
+            Game.Win('I\'m the wiz');
+            Game.Win('A wizard is you');
+
+            // The grimoire is probably the most natural way of unlocking this achievement
+            Game.Win('Four-leaf cookie');
+        }
     }
 
     /* Purchases all purchaseable upgrades and buildings,
@@ -355,6 +583,10 @@ function initBrowserUtilities() {
         limitIEEE754,
         setCookies,
         fillGardenWith,
+        buffTimeModifier,
+        gainEndlessFrenzy,
+        gainBuildingSpecial,
+        ultimateFtHoFCombo,
         nineQuadrillionYears,
         nineQuadrillionClicks,
         nineQuadrillionTicks,
@@ -363,6 +595,8 @@ function initBrowserUtilities() {
         nineQuadrillionLumps,
         levelUpMostBuildings,
         grindGrandmapocalypse,
+        seasonsGrind,
+        miscellaneousGrind,
         roundOfPurchases,
         nextCheck,
         nextCheckState: 'inactive',
@@ -406,6 +640,7 @@ export async function writeSaveFile(page: Page, path: string) {
     let save = await page.evaluate(() => {
         Game.lumpT = 2**53;
         Game.pledgeT = 0;
+        Game.researchT = 0;
         if(Game.isMinigameReady(Game.Objects['Farm'])) {
             let garden = Game.Objects['Farm'].minigame;
             garden.harvestAll();
