@@ -20,6 +20,7 @@ let page = await openSisyphus({
         vault: [
             'Bingo center/Research facility',
             'Birthday cookie',
+            'Chocolate egg',
         ],
     },
 });
