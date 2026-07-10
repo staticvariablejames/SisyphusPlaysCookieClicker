@@ -4,6 +4,8 @@ Sisyphus Plays Cookie Clicker: The Save Files
 Companion repository to a series of articles on the limit of Cookie Clicker:
 <https://github.com/staticvariablejames/CookieMusings#sisyphus-plays-cookie-clicker>
 
-The save files in this repository are constructed by scripts,
-using [Cookie Connoisseur](https://github.com/staticvariablejames/cookie-connoisseur).
-The script and the save file share the same name but different extension.
+This repository contains the save files corresponding to the several steps on Sisyphus's journey;
+they are located in the [saves](./saves) subdirectory.
+The save files were created by scripts,
+using [Cookie Connoisseur](https://github.com/staticvariablejames/cookie-connoisseur);
+the code is available in the [src](./src) subdirectory.
