@@ -30,12 +30,12 @@ let page = await openSisyphus({
  * If no purchases were made in the first place,
  * return false.
  */
-async function exhaustPurchases() {
+async function exhaustPurchases(options?: Parameters<typeof window.SPCC.roundOfPurchases>[0]) {
     let madePurchases = false;
     while(true) {
         await page.evaluate(() => window.SPCC.nineQuadrillionTicks());
         await page.waitForFunction(() => window.SPCC.nextCheck());
-        let madeNewPurchases = await page.evaluate(() => window.SPCC.roundOfPurchases());
+        let madeNewPurchases = await page.evaluate(op => window.SPCC.roundOfPurchases(op), options);
         if(madeNewPurchases) {
             madePurchases = true;
         } else {
@@ -101,7 +101,13 @@ while(true) {
 }
 await page.pause();
 
-console.log('Save 4: ' + await page.evaluate(() => window.Beautify(Game.cookies)));
+console.log(await page.evaluate(() => {
+    return "Save 4: " +
+           window.Beautify(Game.cookies) +
+           " - highest raw CpS is " + window.Beautify(Game.cookiesPsRawHighest) +
+           ", factor till next power of two: " +
+           window.SPCC.factorTillNextPowerOfTwo(Game.cookiesPsRawHighest);
+}));
 await writeSaveFile(page, './saves/sisyphus2-4.cki');
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -163,13 +169,19 @@ while(true) {
         window.SPCC.nineQuadrillionWrinklers();
         Game.elderWrath = 2;
     });
-    if(!await exhaustPurchases()) {
+    if(!await exhaustPurchases({limitTowers: true})) {
         break;
     }
 }
 
 await page.pause();
-console.log('Save 5: ' + await page.evaluate(() => window.Beautify(Game.cookies)));
+console.log(await page.evaluate(() => {
+    return "Save 5: " +
+           window.Beautify(Game.cookies) +
+           " - CpS is " + window.Beautify(Game.cookiesPs) +
+           ", factor till next power of two: " +
+           window.SPCC.factorTillNextPowerOfTwo(Game.cookiesPs);
+}));
 await writeSaveFile(page, './saves/sisyphus2-5.cki');
 
 await page.close();

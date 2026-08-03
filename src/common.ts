@@ -11,6 +11,10 @@ type FillGardenOptions = {
     buds?: boolean,
 };
 
+type RoundOfPurchasesOptions = {
+    limitTowers?: boolean;
+};
+
 /* Sisyphus Plays Cookie Clicker; aggregates helper functions.
  * The function initBrowserUtilities below creates an object window.SPCC with this type.
  * openSisyphus further down runs this function inside a Playwright Page.
@@ -20,11 +24,14 @@ type FillGardenOptions = {
  */
 export type SPCC_t = {
     limitIEEE754: (summand: number) => number,
+    factorTillNextPowerOfTwo: (x: number) => number,
     setCookies: (cookies: number) => void,
     fillGardenWith: (options: FillGardenOptions) => void,
     buffTimeModifier: () => number,
     gainEndlessFrenzy: () => void,
     gainBuildingSpecial: () => boolean,
+    sellWizardTowersToAdjustMagic: () => void,
+    maximizeWizardTowers: () => void,
     ultimateFtHoFCombo: () => void,
     nineQuadrillionYears: () => void,
     nineQuadrillionClicks: () => void,
@@ -36,7 +43,7 @@ export type SPCC_t = {
     grindGrandmapocalypse: () => void,
     seasonsGrind: () => void,
     miscellaneousGrind: () => void,
-    roundOfPurchases: () => boolean,
+    roundOfPurchases: (options?: RoundOfPurchasesOptions) => boolean,
     nextCheck: () => boolean,
     nextCheckState: 'inactive' | 'waiting' | 'check',
 };
@@ -52,6 +59,22 @@ function initBrowserUtilities() {
      */
     function limitIEEE754(summand: number) {
         return 2**(53 + Math.ceil(Math.log2(summand)));
+    }
+
+    /* Helper function.
+     * Returns the smallest number `y` such that
+     * `x*y` is >= the smallest power of two bigger than `y`.
+     */
+    function factorTillNextPowerOfTwo(x: number) {
+        let nextPowerOfTwo = 2**(Math.ceil(Math.log2(x)));
+        let y = nextPowerOfTwo/x; // This is the mathematically correct result
+        if(x*y >= nextPowerOfTwo) {
+            // The mathematically correct result was rounded to an acceptable number
+            return y;
+        } else {
+            // The mathematically correct result was rounded down, so we need to compensate
+            return y + 2**-52;
+        }
     }
 
     /* Helper function.
@@ -173,37 +196,71 @@ function initBrowserUtilities() {
         }
     }
 
+    /* Sets Game.Objects['Wizard tower'].amount
+     * to the maximum possible amount of towers that can be bought without changing the bank.
+     */
+    function maximizeWizardTowers() {
+        Game.Objects['Wizard tower'].sacrifice(Game.Objects['Wizard tower'].amount);
+        while(Game.Objects['Wizard tower'].getPrice(1) < Game.cookies / 2**53) {
+            Game.Objects['Wizard tower'].buyFree(1);
+        }
+        if(Game.isMinigameReady(Game.Objects['Wizard tower'])) {
+            Game.Objects['Wizard tower'].minigame.computeMagicM();
+        }
+    }
+
+    /* Sells wizard towers until max magic = current magic.
+     * Will not sell below 1 wizard tower,
+     * which would prevent casting spells.
+     */
+    function sellWizardTowersToAdjustMagic() {
+        if(!Game.isMinigameReady(Game.Objects['Wizard tower'])) return;
+        let grimoire = Game.Objects['Wizard tower'].minigame;
+
+        while(Game.Objects['Wizard tower'].amount > 1 && grimoire.magic < grimoire.magicM) {
+            Game.Objects['Wizard tower'].sacrifice(1);
+            grimoire.computeMagicM();
+        }
+    }
+
     /* Adds building specials corresponding to the highest possible number of FtHoF casts
      * that can be performed with two sugar lumps and the current technology.
+     *
+     * Note that this function destructively changes Game.Objects['Wizard tower'].amount.
      */
     function ultimateFtHoFCombo() {
-        if(Game.Objects['Wizard tower'].level != 1) {
-            console.warn('Unimplemented'); // TODO
-            return false;
-        }
-        let maxTowers = Game.Objects['Wizard tower'].highest;
+        if(!Game.isMinigameReady(Game.Objects['Wizard tower'])) return false;
+        let grimoire = Game.Objects['Wizard tower'].minigame;
+        let fthof = grimoire.spells['hand of fate'];
+        // let gfd = grimoire.spells['gambler\'s fever dream'];
 
-        let casts;
-        if(maxTowers <= 20) {
-            // Cannot gain any buffs
-            casts = 0;
-        } else if(maxTowers <= 306) {
-            // Can cast once but not twice; using two sugar lumps gives three casts in total
-            casts = 3;
-        } else if(maxTowers <= 3737) {
-            // Can cast twice but not three times
-            casts = 6;
-        } else {
-            // Triple-cast, but only for the first cast
-            casts = 7;
+        let lumpsLeft = 2;
+        maximizeWizardTowers();
+        grimoire.magic = grimoire.magicM;
+        let totalFtHoFcasts = 0;
+        while(true) {
+            let FtHoFcost = grimoire.getSpellCost(fthof);
+            if(FtHoFcost <= grimoire.magic) {
+                grimoire.magic -= FtHoFcost;
+                totalFtHoFcasts++;
+                sellWizardTowersToAdjustMagic();
+            } else if(lumpsLeft > 0) {
+                lumpsLeft--;
+                maximizeWizardTowers();
+                grimoire.magic = Math.min(grimoire.magic+100, grimoire.magicM);
+                sellWizardTowersToAdjustMagic();
+            } else {
+                break;
+            }
         }
-        for(let i = 0; i < casts; i++) {
+
+        maximizeWizardTowers();
+        for(let i = 0; i < totalFtHoFcasts; i++) {
             if(!gainBuildingSpecial()) {
                 return false;
             }
         }
         return true;
-        // TODO: also account for Supreme Intellect, and make this not hardcoded
     }
 
     /* Trigger effects that happen after waiting for a very long time.
@@ -512,14 +569,24 @@ function initBrowserUtilities() {
 
     /* Purchases all purchaseable upgrades and buildings,
      * but without actually spending cookies.
+     *
+     * If options.limitTowers is true,
+     * the Wizard Towers will only be purchased if the can be obtained "for free"
+     * (i.e. their price rounds to 0 compared to Game.cookies, according to the IEEE754 specification).
      */
-    function roundOfPurchases() {
+    function roundOfPurchases(options?: RoundOfPurchasesOptions) {
+        if(!options) options = {};
         let purchasedSomething = false;
 
         // First we buildings, as they might unlock upgrades
         for(let i in Game.Objects) {
             let obj = Game.Objects[i];
-            while(obj.getPrice(1) <= Game.cookies) {
+            let bound = Game.cookies;
+            if(i == 'Wizard tower' && options.limitTowers) {
+                bound = Game.cookies / 2**53;
+            }
+
+            while(obj.getPrice(1) <= bound) {
                 obj.buyFree(1);
                 purchasedSomething = true;
 
@@ -582,11 +649,14 @@ function initBrowserUtilities() {
 
     window.SPCC = {
         limitIEEE754,
+        factorTillNextPowerOfTwo,
         setCookies,
         fillGardenWith,
         buffTimeModifier,
         gainEndlessFrenzy,
         gainBuildingSpecial,
+        sellWizardTowersToAdjustMagic,
+        maximizeWizardTowers,
         ultimateFtHoFCombo,
         nineQuadrillionYears,
         nineQuadrillionClicks,
