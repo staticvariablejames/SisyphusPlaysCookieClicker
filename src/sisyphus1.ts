@@ -1,4 +1,4 @@
-/* This creates the save file obtained in Sisyphus Plays Cookie Clicker I: Fighting Against IEEE754
+/* This creates the save file obtained in Sisyphus Plays Cookie Clicker I: Face to Face with IEEE754
  * (<https://github.com/staticvariablejames/CookieMusings/blob/master/sisyphus-plays-cookie-clicker-1-ieee754.md>).
  *
  * Here we just click the big cookie and coalescing sugar lumps.
