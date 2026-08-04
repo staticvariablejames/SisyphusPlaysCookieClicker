@@ -145,7 +145,7 @@ function initBrowserUtilities() {
         if (Game.Has('Green yeast digestives')) modifier *= 1.01;
         if (Game.Has('Lucky payout')) modifier *= 1.01;
         modifier *= 1+Game.auraMult('Epoch Manipulator')*0.05;
-        modifier *= Game.eff('goldenCookieEffDur', undefined as any); // TODO: fix @types/cookieclicker
+        modifier *= Game.eff('goldenCookieEffDur');
         if (Game.hasGod) {
             let spiritLevel = Game.hasGod('decadence');
             if (spiritLevel==1) modifier *= 1.07;
@@ -176,7 +176,7 @@ function initBrowserUtilities() {
             return false;
         }
         let highest = -1;
-        for(let i = 0; i < (Game.ObjectsById.length as any); i++) { // TODO: fix @types/cookieclicker
+        for(let i = 0; i < Game.ObjectsById.length; i++) {
             if(hasBuildingSpecial(i)) continue;
             if(highest == -1) {
                 highest = i;
@@ -386,7 +386,7 @@ function initBrowserUtilities() {
         for(let good of stockMarket.goodsById) {
             good.stock = stockMarket.getGoodMaxStock(good);
             let profitIn$ = good.stock * stockMarket.getRestingVal(good.id);
-            let profitInCookies = profitIn$ * (Game as any).cookiesPsRawHighest; // TODO: fix @types/cookieclicker
+            let profitInCookies = profitIn$ * Game.cookiesPsRawHighest;
             /* The actual maximum value of the stock is around getRestingVal + 415k,
              * but in the precision limit of the bank the 415k is a negligible amount,
              * and (most importantly) because it gets multiplied by 10 * 2**53
@@ -435,8 +435,7 @@ function initBrowserUtilities() {
             if(Game.Objects[i].name != 'Wizard tower') {
                 Game.Objects[i].level = 2**53;
             }
-            (Game.Objects[i] as any).levelUp(1); // Triggers leveling up achievements
-            // TODO: fix @types/cookieclicker
+            Game.Objects[i].levelUp(true); // Triggers leveling up achievements
         }
     }
 
@@ -478,7 +477,7 @@ function initBrowserUtilities() {
         for(let i = 0; i < 14; i++) Game.UpgradeSanta();
         Game.reindeerClicked = 2**53;
         let reindeer = new Game.shimmer('reindeer');
-        reindeer.pop(undefined as any); // TODO: fix @types/cookieclicker
+        reindeer.pop();
         Game.Win('Eldeer');
         Game.Win("Baby it's old outside");
 
@@ -515,10 +514,9 @@ function initBrowserUtilities() {
         Game.goldenClicks = 2**53;
         Game.goldenClicksLocal = 2**53;
         Game.missedGoldenClicks = 2**53;
-        let gc = new Game.shimmer('golden',{noWrath:true});
-        (gc as any).force = 'blab'; // TODO: fix @types/cookieclicker
+        let gc = new Game.shimmer('golden',{noWrath:true, type:'blab'});
         gc.spawnLead = 1;
-        gc.pop(undefined as any); // Triggers GC-related achievements; TODO: fix @types/cookieclicker
+        gc.pop(); // Triggers GC-related achievements
 
         if(Game.isMinigameReady(Game.Objects['Farm'])) {
             let garden = Game.Objects['Farm'].minigame;
@@ -735,7 +733,7 @@ export async function writeSaveFile(page: Page, path: string) {
                 good.dur = 10;
                 good.stock = 0;
                 good.last = 0;
-                (good as any).prev = 0; // TODO: fix @types/cookieclicker
+                good.prev = 0;
             }
         }
 
