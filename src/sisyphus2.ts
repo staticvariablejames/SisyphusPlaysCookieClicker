@@ -12,7 +12,7 @@
  * (but not the Birthday cookie or Bingo center/research facility)
  * and just waiting.
  */
-import { openSisyphus, writeSaveFile } from './common.ts';
+import { openSisyphus, exhaustPurchases, writeSaveFile } from './common.ts';
 
 let page = await openSisyphus({
     mockedDate: 86400*1000*(1e8-1), // 24 hours before the last valid Date() object
@@ -25,33 +25,13 @@ let page = await openSisyphus({
     },
 });
 
-/* Repeats the cycle of purchasing things and waiting a quadrillion ticks
- * until there are no more purchases to be made.
- * If no purchases were made in the first place,
- * return false.
- */
-async function exhaustPurchases(options?: Parameters<typeof window.SPCC.roundOfPurchases>[0]) {
-    let madePurchases = false;
-    while(true) {
-        await page.evaluate(() => window.SPCC.nineQuadrillionTicks());
-        await page.waitForFunction(() => window.SPCC.nextCheck());
-        let madeNewPurchases = await page.evaluate(op => window.SPCC.roundOfPurchases(op), options);
-        if(madeNewPurchases) {
-            madePurchases = true;
-        } else {
-            break;
-        }
-    }
-    return madePurchases;
-}
-
 await page.evaluate(() => {Game.Earn(15); Game.Objects['Cursor'].buy(1);});
 await page.waitForFunction(() => window.SPCC.nextCheck());
-await exhaustPurchases();
-await page.pause();
+await exhaustPurchases(page);
 
 console.log('Save 1: ' + await page.evaluate(() => window.Beautify(Game.cookies)));
 await writeSaveFile(page, './saves/sisyphus2-1.cki');
+// await page.pause();
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *                                Save File 2                                *
@@ -62,11 +42,11 @@ await writeSaveFile(page, './saves/sisyphus2-1.cki');
 await page.evaluate(() => window.SPCC.nineQuadrillionLumps(7));
 await page.evaluate(() => Game.Upgrades['Birthday cookie'].earn());
 await page.evaluate(() => window.SPCC.levelUpMostBuildings());
-await exhaustPurchases();
-await page.pause();
+await exhaustPurchases(page);
 
 console.log('Save 2: ' + await page.evaluate(() => window.Beautify(Game.cookies)));
 await writeSaveFile(page, './saves/sisyphus2-2.cki');
+// await page.pause();
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *                                Save File 3                                *
@@ -78,28 +58,27 @@ await page.evaluate(() => window.SPCC.grindGrandmapocalypse());
 // await page.evaluate(() => window.SPCC.fillGardenWith({plant: 'wrinklegill'}));
 while(true) {
     await page.evaluate(() => window.SPCC.nineQuadrillionWrinklers());
-    if(!await exhaustPurchases()) {
+    if(!await exhaustPurchases(page)) {
         break;
     }
 }
-await page.pause();
 
 console.log('Save 3: ' + await page.evaluate(() => window.Beautify(Game.cookies)));
 await writeSaveFile(page, './saves/sisyphus2-3.cki');
+// await page.pause();
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *                                Save File 4                                *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  * Stock market shenanigans.
  */
-await exhaustPurchases();
+await exhaustPurchases(page);
 while(true) {
     await page.evaluate(() => window.SPCC.nineQuadrillionStocks());
-    if(!await exhaustPurchases()) {
+    if(!await exhaustPurchases(page)) {
         break;
     }
 }
-await page.pause();
 
 console.log(await page.evaluate(() => {
     return "Save 4: " +
@@ -109,6 +88,7 @@ console.log(await page.evaluate(() => {
            window.SPCC.factorTillNextPowerOfTwo(Game.cookiesPsRawHighest);
 }));
 await writeSaveFile(page, './saves/sisyphus2-4.cki');
+// await page.pause();
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *                                Save File 5                                *
@@ -121,8 +101,9 @@ await page.evaluate(() => {
     window.SPCC.miscellaneousGrind();
     window.SPCC.nineQuadrillionLumps(10);
 
+    // Planting nursetulips first triggers the "ghost nursetulips bug"
     window.SPCC.fillGardenWith({plant: 'goldenClover', plant2: 'nursetulip'});
-    window.SPCC.fillGardenWith({plant:'whiskerbloom', buds: true});
+    window.SPCC.fillGardenWith({plant: 'whiskerbloom', buds: true});
 
     let pantheon = Game.Objects['Temple'].minigame;
     pantheon.slotGod(pantheon.gods['mother'], 0);
@@ -139,21 +120,24 @@ await page.evaluate(() => {
      * so we have access to golden cookies and wrinklers at the same time.
      */
     Game.elderWrath = 2;
-    Game.Achievements['Grandmapocalypse'].won = 0;
-    Game.Achievements['Elder nap'].won = 0;
-    Game.Achievements['Elder slumber'].won = 0;
-    Game.Achievements['Elder calm'].won = 0;
-    Game.Upgrades['Elder Pact'].bought = 0
+    Game.pledges = 0;
+    Game.RemoveAchiev('Grandmapocalypse');
+    Game.RemoveAchiev('Elder nap');
+    Game.RemoveAchiev('Elder slumber');
+    Game.RemoveAchiev('Elder calm');
+    Game.Upgrades['Elder Pact'].bought = 0;
+    Game.Upgrades['Elder Pact'].unlocked = 0;
     Game.Upgrades['Sacrificial rolling pins'].bought = 0;
     Game.Upgrades['Sacrificial rolling pins'].unlocked = 0;
+    Game.Upgrades['Elder Pledge'].bought = 0;
+    Game.Upgrades['Elder Pledge'].unlocked = 0;
+    Game.Upgrades['Elder Covenant'].unlocked = 0;
+    Game.Upgrades['Elder Covenant'].bought = 0;
+    Game.SetResearch('Elder Pact');
     Game.UpdateGrandmapocalypse();
     Game.RebuildUpgrades();
 
     Game.Objects['Wizard tower'].amount = 321;
-
-    (Game as any).takeLoan(1); // TODO fix @types/cookieclicker
-    (Game as any).takeLoan(2);
-    (Game as any).takeLoan(3);
 });
 
 while(true) {
@@ -166,15 +150,15 @@ while(true) {
         window.SPCC.ultimateFtHoFCombo();
         Game.gainBuff('blood frenzy', Math.ceil(6 * window.SPCC.buffTimeModifier()), 666);
 
+        window.SPCC.nineQuadrillionClicks(); // For the achievements
         window.SPCC.nineQuadrillionWrinklers();
         Game.elderWrath = 2;
     });
-    if(!await exhaustPurchases({limitTowers: true})) {
+    if(!await exhaustPurchases(page, {limitTowers: true})) {
         break;
     }
 }
 
-await page.pause();
 console.log(await page.evaluate(() => {
     return "Save 5: " +
            window.Beautify(Game.cookies) +
@@ -183,5 +167,6 @@ console.log(await page.evaluate(() => {
            window.SPCC.factorTillNextPowerOfTwo(Game.cookiesPs);
 }));
 await writeSaveFile(page, './saves/sisyphus2-5.cki');
+// await page.pause();
 
 await page.close();

@@ -701,6 +701,27 @@ export async function openSisyphus(options: CCPageOptions) {
     return page;
 }
 
+/* Repeats the cycle of purchasing things and waiting a quadrillion ticks
+ * until there are no more purchases to be made.
+ * If no purchases were made in the first place,
+ * return false.
+ */
+export async function exhaustPurchases(page: Page, options?: RoundOfPurchasesOptions) {
+    let madePurchases = false;
+    while(true) {
+        await page.evaluate(() => window.SPCC.nineQuadrillionTicks());
+        await page.waitForFunction(() => window.SPCC.nextCheck());
+        let madeNewPurchases = await page.evaluate(op => window.SPCC.roundOfPurchases(op), options);
+        if(madeNewPurchases) {
+            madePurchases = true;
+        } else {
+            break;
+        }
+    }
+    return madePurchases;
+}
+
+
 /* Performs some save normalization
  * (to ensure the save game stays the same across multiple runs of the script)
  * and writes it to the given file.
@@ -747,8 +768,9 @@ export async function writeSaveFile(page: Page, path: string) {
 
         let time = Game.time;
         Game.time = 2**53; // This becomes Game.lastDate inside Game.WriteSave
-        return Game.WriteSave(1);
+        let save = Game.WriteSave(1);
         Game.time = time;
+        return save;
     });
     await fsPromises.writeFile(path, save);
 }
