@@ -11,6 +11,17 @@ type FillGardenOptions = {
     buds?: boolean,
 };
 
+type UltimateFtHoFComboOptions = {
+    gfd?: boolean;
+    startingTowers?: number;
+    verbose?: boolean;
+};
+
+type GrindGrandmapocalypseOptions = {
+    maxStage?: number;
+    pledge?: boolean;
+};
+
 type RoundOfPurchasesOptions = {
     limitTowers?: boolean;
 };
@@ -32,7 +43,7 @@ export type SPCC_t = {
     gainBuildingSpecial: () => boolean,
     sellWizardTowersToAdjustMagic: () => void,
     maximizeWizardTowers: () => void,
-    ultimateFtHoFCombo: () => void,
+    ultimateFtHoFCombo: (options?: UltimateFtHoFComboOptions) => void,
     nineQuadrillionYears: () => void,
     nineQuadrillionClicks: () => void,
     nineQuadrillionTicks: () => void,
@@ -40,7 +51,7 @@ export type SPCC_t = {
     nineQuadrillionStocks: () => void,
     nineQuadrillionLumps: (amount: number) => void,
     levelUpMostBuildings: () => void,
-    grindGrandmapocalypse: () => void,
+    grindGrandmapocalypse: (options?: GrindGrandmapocalypseOptions) => void,
     seasonsGrind: () => void,
     miscellaneousGrind: () => void,
     roundOfPurchases: (options?: RoundOfPurchasesOptions) => boolean,
@@ -228,21 +239,38 @@ function initBrowserUtilities() {
      *
      * Note that this function destructively changes Game.Objects['Wizard tower'].amount.
      */
-    function ultimateFtHoFCombo() {
+    function ultimateFtHoFCombo(options?: UltimateFtHoFComboOptions) {
+        if(!options) options = {};
         if(!Game.isMinigameReady(Game.Objects['Wizard tower'])) return false;
+        let logs: string[] = [];
         let grimoire = Game.Objects['Wizard tower'].minigame;
         let fthof = grimoire.spells['hand of fate'];
-        // let gfd = grimoire.spells['gambler\'s fever dream'];
+        let gfd = grimoire.spells['gambler\'s fever dream'];
 
         let lumpsLeft = 2;
-        maximizeWizardTowers();
+        if(options.startingTowers) {
+            Game.Objects['Wizard tower'].amount = options.startingTowers;
+            grimoire.computeMagicM();
+        } else {
+            maximizeWizardTowers();
+        }
         grimoire.magic = grimoire.magicM;
         let totalFtHoFcasts = 0;
         while(true) {
-            let FtHoFcost = grimoire.getSpellCost(fthof);
-            if(FtHoFcost <= grimoire.magic) {
-                grimoire.magic -= FtHoFcost;
+            let spellCost;
+            if(options.gfd) {
+                spellCost = grimoire.getSpellCost(gfd) + grimoire.getSpellCost(fthof)/2;
+            } else {
+                spellCost = grimoire.getSpellCost(fthof);
+            }
+            if(spellCost <= grimoire.magic) {
+                grimoire.magic -= spellCost;
                 totalFtHoFcasts++;
+                logs.push(
+                    `${grimoire.magic + spellCost} -> ${grimoire.magic} ` +
+                    `(${options.gfd ? 'GFD->' : ''}FtHoF, ` +
+                    `${Game.Objects['Wizard tower'].amount} towers)`
+                );
                 sellWizardTowersToAdjustMagic();
             } else if(lumpsLeft > 0) {
                 lumpsLeft--;
@@ -259,6 +287,10 @@ function initBrowserUtilities() {
             if(!gainBuildingSpecial()) {
                 return false;
             }
+        }
+
+        if(options.verbose) {
+            console.log(`[SPCC] ${logs.length} casts: ${logs.join(', ')}`);
         }
         return true;
     }
@@ -440,31 +472,61 @@ function initBrowserUtilities() {
     }
 
     // Gets all grandmapocalypse-related upgrades and achievements.
-    function grindGrandmapocalypse() {
-        Game.Upgrades['Bingo center/Research facility'].earn();
-        for(let i in Game.Upgrades) {
-            if(Game.Upgrades[i].pool == 'tech') {
-                Game.Upgrades[i].earn();
-            }
-        }
-        Game.Upgrades['Sacrificial rolling pins'].earn();
+    function grindGrandmapocalypse(options?: GrindGrandmapocalypseOptions) {
+        if(!options) options = {maxStage: 3, pledge: true};
+        if(!options.maxStage) options.maxStage = 3;
 
-        Game.Win('Grandmapocalypse');
+        // These upgrades can be obtained without starting the grandmapocalypse
+        Game.Upgrades['Bingo center/Research facility'].earn();
+        Game.Upgrades['Specialized chocolate chips'].earn();
+        Game.Upgrades['Designer cocoa beans'].earn();
+        Game.Upgrades['Ritual rolling pins'].earn();
+        Game.Upgrades['Underworld ovens'].earn();
+
+        Game.elderWrath = 0;
+        if(options.maxStage <= 0) {
+            return;
+        }
+
+        // These are only achievable by starting the grandmapocalypse
+        Game.Upgrades['One mind'].earn();
+        Game.Upgrades['Exotic nuts'].earn();
         Game.Win('Wrath cookie');
-        Game.Win('Elder nap');
-        Game.Win('Elder slumber');
-        Game.Win('Elder calm');
         Game.Win('Wrinkler poker');
         Game.Win('Sweetmeats'); // We did not get this one in nineQuadrillionLumps
-
         Game.wrinklersPopped = 2**53;
+        Game.Upgrades['Wrinkler ambergris'].unlock();
         CConnoisseur.spawnWrinkler(0);
         Game.wrinklers[0].type = 1; // Shiny
         CConnoisseur.popWrinkler(0);
-        Game.Upgrades['Wrinkler ambergris'].unlock();
 
+        Game.elderWrath = 1;
+        if(options.maxStage <= 1) {
+            return;
+        }
+
+        Game.Upgrades['Communal brainsweep'].earn();
+        Game.Upgrades['Arcane sugar'].earn();
+
+        Game.elderWrath = 2;
+        if(options.maxStage <= 2) {
+            return;
+        }
+
+        Game.Upgrades['Elder Pact'].earn();
+        Game.Upgrades['Sacrificial rolling pins'].earn();
+
+        Game.Win('Grandmapocalypse');
+        Game.Win('Elder nap');
+        Game.Win('Elder slumber');
+        Game.Win('Elder calm');
         Game.pledges = 2**53;
-        Game.Upgrades['Elder Pledge'].earn(); // Exits the grandmapocalypse
+
+        Game.elderWrath = 3;
+
+        if(options.pledge) {
+            Game.Upgrades['Elder Pledge'].earn(); // Exits the grandmapocalypse
+        }
     }
 
     function seasonsGrind() {
