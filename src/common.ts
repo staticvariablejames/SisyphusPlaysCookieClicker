@@ -738,7 +738,6 @@ export async function writeSaveFile(page: Page, path: string) {
 
         if(Game.isMinigameReady(Game.Objects['Farm'])) {
             let garden = Game.Objects['Farm'].minigame;
-            garden.harvestAll();
             garden.nextStep = 2**53;
             garden.nextSoil = 2**53;
             garden.nextFreeze = 2**53;
