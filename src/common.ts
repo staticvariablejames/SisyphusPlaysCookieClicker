@@ -14,7 +14,7 @@ type FillGardenOptions = {
 type UltimateFtHoFComboOptions = {
     gfd?: boolean;
     startingTowers?: number;
-    verbose?: boolean;
+    verbose?: number;
 };
 
 type GrindGrandmapocalypseOptions = {
@@ -241,6 +241,7 @@ function initBrowserUtilities() {
      */
     function ultimateFtHoFCombo(options?: UltimateFtHoFComboOptions) {
         if(!options) options = {};
+        if(!options.verbose) options.verbose = 0;
         if(!Game.isMinigameReady(Game.Objects['Wizard tower'])) return false;
         let logs: string[] = [];
         let grimoire = Game.Objects['Wizard tower'].minigame;
@@ -271,6 +272,20 @@ function initBrowserUtilities() {
                     `(${options.gfd ? 'GFD->' : ''}FtHoF, ` +
                     `${Game.Objects['Wizard tower'].amount} towers)`
                 );
+                if(options.gfd && options.verbose >= 2) {
+                    // Also report available candidates for GFD
+                    let budget = grimoire.magic + grimoire.getSpellCost(fthof)/2;
+                    let candidates: string[] = [];
+                    for(let spell of grimoire.spellsById) {
+                        if(spell.name != "Gambler's Fever Dream" &&
+                           grimoire.getSpellCost(spell)*0.5 <= budget)
+                        {
+                            candidates.push(spell.name);
+                        }
+                    }
+                    console.log(`[SPCC] Candidates were ${candidates.length}: ` +
+                                `${candidates.join(', ')}`);
+                }
                 sellWizardTowersToAdjustMagic();
             } else if(lumpsLeft > 0) {
                 lumpsLeft--;

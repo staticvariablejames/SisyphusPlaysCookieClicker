@@ -15,6 +15,7 @@ import { openSisyphus, exhaustPurchases, writeSaveFile } from './common.ts';
 let page = await openSisyphus({
     mockedDate: 86400*1000*(1e8-1), // 24 hours before the last valid Date() object
     saveGame: {
+        seed: "aaadj",
         vault: [
             'Bingo center/Research facility',
             'Birthday cookie',
