@@ -87,6 +87,41 @@ console.log(await page.evaluate(() => {
            window.SPCC.factorTillNextPowerOfTwo(Game.cookiesPs);
 }));
 await writeSaveFile(page, './saves/sisyphus3-1.cki');
+// await page.pause();
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ *                                Save File 2                                *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * 20 building specials.
+ */
+while(true) {
+    await page.evaluate(() => {
+        Game.killBuffs();
+        window.SPCC.gainEndlessFrenzy();
+        Game.gainBuff('sugar blessing', 86400, 1);
+        Game.gainBuff('blood frenzy', Math.ceil(6 * window.SPCC.buffTimeModifier()), 666);
+        window.SPCC.maximizeWizardTowers();
+        for(let i = 0; i < 20; i++) {
+            window.SPCC.gainBuildingSpecial();
+        }
+
+        window.SPCC.nineQuadrillionClicks(); // For the achievements
+        window.SPCC.nineQuadrillionWrinklers();
+        Game.elderWrath = 2;
+    });
+    if(!await exhaustPurchases(page, {limitTowers: true})) {
+        break;
+    }
+}
+
+console.log(await page.evaluate(() => {
+    return "Save 2: " +
+           window.Beautify(Game.cookies) +
+           " - CpS is " + window.Beautify(Game.cookiesPs) +
+           ", factor till next power of two: " +
+           window.SPCC.factorTillNextPowerOfTwo(Game.cookiesPs);
+}));
+await writeSaveFile(page, './saves/sisyphus3-2.cki');
 await page.pause();
 
 await page.close();

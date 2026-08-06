@@ -323,6 +323,7 @@ function initBrowserUtilities() {
 
     // Simulates clicking the big cookie 2*53 times
     function nineQuadrillionClicks() {
+        Game.CalculateGains();
         let gainedCookies = limitIEEE754(Game.computedMouseCps);
         setCookies(gainedCookies);
 
