@@ -26,6 +26,7 @@ await page.evaluate(() => {
     let grimoire = Game.Objects['Wizard tower'].minigame;
     let fthof = grimoire.spells['hand of fate'];
     let gfd = grimoire.spells['gambler\'s fever dream'];
+    let st = grimoire.spells['stretch time'];
 
     function* seedIterator(startSeed: string) {
         let z = 'z'.charCodeAt(0);
@@ -45,6 +46,58 @@ await page.evaluate(() => {
                 break;
             }
         }
+    }
+
+    /* Prints a sequence of casts and wizard tower amounts
+     * that casts Stretch Time as many times in a row as possible.
+     */
+    function stretchTimeCastSequence(options?: {gfd?: boolean}) {
+        if(!options) options = {};
+        if(!Game.isMinigameReady(Game.Objects['Wizard tower'])) return;
+        let logs: string[] = [];
+        let grimoire = Game.Objects['Wizard tower'].minigame;
+
+        Game.Objects['Wizard tower'].level = 1;
+        Game.Objects['Wizard tower'].amount = 517; // Minimum number of towers for 100 max magic
+
+        grimoire.computeMagicM();
+        grimoire.magic = grimoire.magicM;
+        while(true) {
+            let spellCost;
+            if(options.gfd) {
+                spellCost = grimoire.getSpellCost(gfd) + grimoire.getSpellCost(st)/2;
+            } else {
+                spellCost = grimoire.getSpellCost(st);
+            }
+            if(spellCost <= grimoire.magic) {
+                grimoire.magic -= spellCost;
+                logs.push(
+                    `${grimoire.magic + spellCost} -> ${grimoire.magic} ` +
+                    `(${options.gfd ? 'GFD->' : ''}ST, ` +
+                    `${Game.Objects['Wizard tower'].amount} towers)`
+                );
+                if(options.gfd) {
+                    // Also report available candidates for GFD
+                    let budget = grimoire.magic + grimoire.getSpellCost(st)/2;
+                    let candidates: string[] = [];
+                    for(let spell of grimoire.spellsById) {
+                        if(spell.name != "Gambler's Fever Dream" &&
+                           grimoire.getSpellCost(spell)*0.5 <= budget)
+                        {
+                            candidates.push(spell.name);
+                        }
+                    }
+                    console.log(`[SPCC] Candidates were ${candidates.length}: ` +
+                                `${candidates.join(', ')}`);
+                }
+                window.SPCC.sellWizardTowersToAdjustMagic();
+            } else {
+                break;
+            }
+        }
+
+        window.SPCC.maximizeWizardTowers();
+        console.log(`[SPCC] ${logs.length} casts: ${logs.join(', ')}`);
     }
 
     /* Finds the first seed after `startSeed`
@@ -105,10 +158,48 @@ await page.evaluate(() => {
         return 'not found';
     }
 
+    /* Similar to findGFD,
+     * but the spell sought after is a stretch time with a positive response.
+     *
+     * For example,
+     * `SeedSearch.findStretchTime([517, 288, 154, 77, 38, 17, 5]) == "aaaat"`.
+     */
+    function findStretchTime(towerCounts: number[], startSeed: string = 'aaaaa') {
+        let trueSetTimeout = setTimeout;
+        (window as any).setTimeout = (f: () => void) => f();
+    outerLoop:
+        for(let seed of seedIterator(startSeed)) {
+            for(let towerCount of towerCounts) {
+                Game.Objects['Wizard tower'].amount = towerCount;
+                grimoire.computeMagicM();
+                grimoire.magic = grimoire.magicM;
+                Game.seed = seed;
+                Game.killBuffs();
+                Game.killShimmers();
+                Game.gainBuff('devastation', 10, 1);
+                grimoire.castSpell(gfd);
+                if(Game.buffs['Devastation'].maxTime > 300) {
+                    // GFD picks Stretch Time, and it works. Check next towerCount
+                    continue;
+                } else {
+                    // Either GFD does not pick Stretch Time, or it backfires
+                    continue outerLoop;
+                }
+            }
+            // All tower counts passed
+            (window as any).setTimeout = trueSetTimeout;
+            return seed;
+        }
+        (window as any).setTimeout = trueSetTimeout;
+        return 'not found';
+    }
+
     (window as any).SeedSearch = {
         seedIterator,
+        stretchTimeCastSequence,
         findBuildingSpecial,
         findGFD,
+        findStretchTime,
     };
 });
 
