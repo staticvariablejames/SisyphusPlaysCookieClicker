@@ -6,8 +6,8 @@ import { openCookieClickerPage, CCSave } from 'cookie-connoisseur';
 type CCPageOptions = Exclude<Parameters<typeof openCookieClickerPage>[1], undefined>;
 
 type FillGardenOptions = {
-    plant: string,
-    plant2?: string,
+    plant: string | null,
+    plant2?: string | null,
     buds?: boolean,
 };
 
@@ -41,6 +41,7 @@ export type SPCC_t = {
     buffTimeModifier: () => number,
     gainEndlessFrenzy: () => void,
     gainBuildingSpecial: () => boolean,
+    gainMaximumGodzamok: () => void,
     sellWizardTowersToAdjustMagic: () => void,
     maximizeWizardTowers: () => void,
     ultimateFtHoFCombo: (options?: UltimateFtHoFComboOptions) => void,
@@ -105,6 +106,15 @@ function initBrowserUtilities() {
      * If two plants are specified,
      * plants the first and the second plant with alternated rows.
      *
+     * If any plant is set to 'null',
+     * then the state of those rows are not altered in the garden.
+     *
+     * If options.buds is set,
+     * then the plants will be kept as buds (the earliest stage of maturation)
+     * and gardenBoostPlot is _not_ called.
+     * Otherwise,
+     * the plants will be set to the ealiest age that they are considered fully mature.
+     *
      * Assumes a 6x6 garden.
      * Silently fails if the garden minigame is not loaded.
      */
@@ -114,20 +124,28 @@ function initBrowserUtilities() {
         }
         if(!Game.isMinigameReady(Game.Objects['Farm'])) return;
         let garden = Game.Objects['Farm'].minigame;
-        let plantId1 = garden.plants[options.plant].id;
-        let plantId2 = garden.plants[options.plant2].id;
         for(let i = 0; i < 6; i++)
         for(let j = 0; j < 3; j++) {
-            garden.plot[i][2*j  ][0] = plantId1 + 1; // Why "+1", Orteil??
-            garden.plot[i][2*j+1][0] = plantId2 + 1;
-            if(options.buds) {
-                garden.plot[i][2*j  ][1] = 0;
-                garden.plot[i][2*j+1][1] = 0;
-            } else {
-                garden.plot[i][2*j  ][1] = garden.plants[options.plant].mature;
-                garden.plot[i][2*j+1][1] = garden.plants[options.plant2].mature;
+            if(options.plant !== null) {
+                let plantId1 = garden.plants[options.plant].id;
+                garden.plot[i][2*j][0] = plantId1 + 1; // Why "+1", Orteil??
+                if(options.buds) {
+                    garden.plot[i][2*j][1] = 0;
+                } else {
+                    garden.plot[i][2*j][1] = garden.plants[options.plant].mature;
+                }
+            }
+            if(options.plant2 !== null) {
+                let plantId2 = garden.plants[options.plant2].id;
+                garden.plot[i][2*j+1][0] = plantId2 + 1;
+                if(options.buds) {
+                    garden.plot[i][2*j+1][1] = 0;
+                } else {
+                    garden.plot[i][2*j+1][1] = garden.plants[options.plant2].mature;
+                }
             }
         }
+
         garden.soil = garden.soils['clay'].id;
         garden.freeze = 0;
         garden.computeStepT();
@@ -205,6 +223,14 @@ function initBrowserUtilities() {
             Game.gainBuff('building buff', Math.ceil(30 * buffTimeModifier()), buffPower, highest);
             return true;
         }
+    }
+
+    function gainMaximumGodzamok() {
+        // Presumably Cursors is the building we have the most of
+        let buildings = Game.Objects['Cursor'].amount;
+        let power = limitIEEE754(buildings * 0.01);
+        Game.gainBuff('devastation', Math.ceil(2**54/Game.fps), power);
+        // TODO: this can still be time-stretched, replace it with time cap
     }
 
     /* Sets Game.Objects['Wizard tower'].amount
@@ -469,6 +495,7 @@ function initBrowserUtilities() {
         }
 
         Game.gainLumps(amount); // Trigger more achievements
+        Game.addClass('lumpsOn');
         Game.lumpT = 2**53; // Normalize the game state
         Game.lumpCurrentType = 0;
 
@@ -731,6 +758,7 @@ function initBrowserUtilities() {
         buffTimeModifier,
         gainEndlessFrenzy,
         gainBuildingSpecial,
+        gainMaximumGodzamok,
         sellWizardTowersToAdjustMagic,
         maximizeWizardTowers,
         ultimateFtHoFCombo,
@@ -807,7 +835,9 @@ export async function exhaustPurchases(page: Page, options?: RoundOfPurchasesOpt
 export async function writeSaveFile(page: Page, path: string) {
     let save = await page.evaluate(() => {
         Game.lumpT = 2**53;
-        Game.pledgeT = 0;
+        if(Game.pledgeT > 0) {
+            Game.pledgeT = Game.getPledgeDuration();
+        }
         Game.researchT = 0;
 
         for(let buffKey in Game.buffs) {

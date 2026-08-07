@@ -122,6 +122,56 @@ console.log(await page.evaluate(() => {
            window.SPCC.factorTillNextPowerOfTwo(Game.cookiesPs);
 }));
 await writeSaveFile(page, './saves/sisyphus3-2.cki');
+// await page.pause();
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ *                                Save File 3                                *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * 20 building specials, and a limitIEEE754 Godzamok.
+ */
+await page.evaluate(() => {
+    // We won't use wrinklers anymore, so we may catch the last few Grandmapocalypse achievements.
+    window.SPCC.grindGrandmapocalypse({maxStage: 3, pledge: true});
+
+    // Plant nursetulips and whiskerblooms for the garden
+    window.SPCC.fillGardenWith({plant: 'whiskerbloom', plant2: 'nursetulip'});
+    /* Harvest the nursetulips and replace them with bud whiskerblooms
+     * Will still trigger the ghost tulips bug.
+     */
+    window.SPCC.fillGardenWith({plant: null, plant2: 'whiskerbloom', buds: true});
+});
+
+while(true) {
+    await page.evaluate(() => {
+        Game.killBuffs();
+        window.SPCC.gainEndlessFrenzy();
+        Game.gainBuff('sugar blessing', 86400, 1);
+        Game.gainBuff('click frenzy', Math.ceil(13 * window.SPCC.buffTimeModifier()), 777);
+        Game.gainBuff('blood frenzy', Math.ceil(6 * window.SPCC.buffTimeModifier()), 666);
+        window.SPCC.gainMaximumGodzamok();
+        for(let i = 0; i < 20; i++) {
+            window.SPCC.gainBuildingSpecial();
+        }
+
+        window.SPCC.nineQuadrillionClicks();
+    });
+    /* No need to limitTowers anymore,
+     * as we will not need to use the Grimoire
+     * once the buffs have been stretched for long enough.
+     */
+    if(!await exhaustPurchases(page)) {
+        break;
+    }
+}
+
+console.log(await page.evaluate(() => {
+    return "Save 3: " +
+           window.Beautify(Game.cookies) +
+           " - CpC is " + window.Beautify(Game.computedMouseCps) +
+           ", factor till next power of two: " +
+           window.SPCC.factorTillNextPowerOfTwo(Game.computedMouseCps);
+}));
+await writeSaveFile(page, './saves/sisyphus3-3.cki');
 await page.pause();
 
 await page.close();
