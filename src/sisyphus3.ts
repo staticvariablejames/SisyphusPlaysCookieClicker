@@ -172,6 +172,144 @@ console.log(await page.evaluate(() => {
            window.SPCC.factorTillNextPowerOfTwo(Game.computedMouseCps);
 }));
 await writeSaveFile(page, './saves/sisyphus3-3.cki');
-await page.pause();
+// await page.pause();
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ *                                Save File 4                                *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Buildings-as-reservoirs trick.
+ */
+let cpc: number;
+
+while(true) {
+    cpc = await page.evaluate(() => {
+        Game.killBuffs();
+        window.SPCC.fillGardenWith({plant: 'whiskerbloom', plant2: 'nursetulip'});
+        window.SPCC.fillGardenWith({plant: null, plant2: 'whiskerbloom', buds: true});
+        let pantheon = Game.Objects['Temple'].minigame;
+        pantheon.slotGod(pantheon.gods['mother'], 0);
+        window.SPCC.gainEndlessFrenzy();
+        Game.gainBuff('sugar blessing', 86400, 1);
+        Game.gainBuff('click frenzy', Math.ceil(13 * window.SPCC.buffTimeModifier()), 777);
+        Game.gainBuff('blood frenzy', Math.ceil(6 * window.SPCC.buffTimeModifier()), 666);
+        window.SPCC.gainMaximumGodzamok();
+        for(let i = 0; i < 20; i++) {
+            window.SPCC.gainBuildingSpecial();
+        }
+
+        window.SPCC.nineQuadrillionClicks();
+        return Game.computedMouseCps;
+    });
+    if(!await exhaustPurchases(page)) {
+        let trick = await page.evaluate(() => {
+            // Must start with Wizard Towers
+            let order = [7, 0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
+            return window.SPCC.buildingsAsReservoirsPurchaseTrick({
+                buildingsOrder: order,
+            });
+
+            // This step destroys CpC, so wwe needed to save it before
+        });
+        if(!trick) {
+            break;
+        }
+    }
+}
+
+let previousGameCookies = await page.evaluate(() => {
+    let previousGameCookies = Game.cookies;
+    for(let i = 0; i < Game.ObjectsById.length; i++) {
+        Game.ObjectsById[i].sell(Game.ObjectsById[i].amount, false as any); // TODO @types/cookieclicker
+    }
+    return previousGameCookies;
+});
+
+console.log(await page.evaluate(cpc => {
+    return "Save 4: " +
+           window.Beautify(Game.cookies) +
+           " - CpC was " + window.Beautify(cpc) +
+           ", factor till next power of two: " +
+           window.SPCC.factorTillNextPowerOfTwo(cpc);
+}, cpc));
+await writeSaveFile(page, './saves/sisyphus3-4.cki');
+// await page.pause();
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ *                                Save File 5                                *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Using the buildings-as-reservoirs trick to get higher building specials,
+ * plus purchasing the Chocolate egg.
+ */
+
+/* I have to reset Game.cookies because functions like roundOfPurchases
+ * relies on it being an accurate indicative of how many cookies we can repeatedly obtain
+ */
+await page.evaluate(prev => Game.cookies = prev, previousGameCookies);
+while(true) {
+    cpc = await page.evaluate(() => {
+        window.SPCC.roundOfPurchases(); // Undoes the selling from the last save
+        window.SPCC.fillGardenWith({plant: 'whiskerbloom', plant2: 'nursetulip'});
+        window.SPCC.fillGardenWith({plant: null, plant2: 'whiskerbloom', buds: true});
+        let pantheon = Game.Objects['Temple'].minigame;
+        pantheon.slotGod(pantheon.gods['mother'], 0);
+        Game.killBuffs();
+        window.SPCC.gainEndlessFrenzy();
+        Game.gainBuff('sugar blessing', 86400, 1);
+        Game.gainBuff('click frenzy', Math.ceil(13 * window.SPCC.buffTimeModifier()), 777);
+        Game.gainBuff('blood frenzy', Math.ceil(6 * window.SPCC.buffTimeModifier()), 666);
+        window.SPCC.gainMaximumGodzamok();
+        for(let i = 0; i < 20; i++) {
+            window.SPCC.gainBuildingSpecial({useHighest: true});
+        }
+
+        window.SPCC.nineQuadrillionClicks();
+        return Game.computedMouseCps;
+    });
+    if(!await exhaustPurchases(page)) {
+        let trick = await page.evaluate(() => {
+            let order = [7, 0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
+            let startingBank = Game.cookies;
+            let hasChanged = false;
+            for(let i = 1; i < order.length; i++) {
+                let tmp = order[order.length-1];
+                order[order.length-1] = order[i];
+                order[i] = tmp;
+                if(window.SPCC.buildingsAsReservoirsPurchaseTrick({
+                    buildingsOrder: order,
+                    reportOnlyChangeInHighest: true,
+                    startingBank,
+                }))
+                {
+                    hasChanged = true;
+                }
+                tmp = order[order.length-1];
+                order[order.length-1] = order[i];
+                order[i] = tmp;
+            }
+            return hasChanged;
+        });
+        if(!trick) {
+            break;
+        }
+    }
+}
+
+await page.evaluate(() => {
+    for(let i = 0; i < Game.ObjectsById.length; i++) {
+        Game.ObjectsById[i].sell(Game.ObjectsById[i].amount, false as any); // TODO @types/cookieclicker
+    }
+    // Now we purchase the Chocolate egg
+    Game.Upgrades['Chocolate egg'].buy(undefined as any); // TODO @types/cookieclicker
+});
+
+console.log(await page.evaluate(cpc => {
+    return "Save 5: " +
+           window.Beautify(Game.cookies) +
+           " - CpC was " + window.Beautify(cpc) +
+           ", factor till next power of two: " +
+           window.SPCC.factorTillNextPowerOfTwo(cpc);
+}, cpc));
+await writeSaveFile(page, './saves/sisyphus3-5.cki');
+// await page.pause();
 
 await page.close();

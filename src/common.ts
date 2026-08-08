@@ -11,6 +11,10 @@ type FillGardenOptions = {
     buds?: boolean,
 };
 
+type GainBuildingSpecialOptions = {
+    useHighest: boolean,
+};
+
 type UltimateFtHoFComboOptions = {
     gfd?: boolean;
     startingTowers?: number;
@@ -24,6 +28,12 @@ type GrindGrandmapocalypseOptions = {
 
 type RoundOfPurchasesOptions = {
     limitTowers?: boolean;
+};
+
+type ReservoirTrickOptions = {
+    buildingsOrder: number[],
+    reportOnlyChangeInHighest?: boolean,
+    startingBank?: number,
 };
 
 /* Sisyphus Plays Cookie Clicker; aggregates helper functions.
@@ -40,7 +50,7 @@ export type SPCC_t = {
     fillGardenWith: (options: FillGardenOptions) => void,
     buffTimeModifier: () => number,
     gainEndlessFrenzy: () => void,
-    gainBuildingSpecial: () => boolean,
+    gainBuildingSpecial: (options?: GainBuildingSpecialOptions) => boolean,
     gainMaximumGodzamok: () => void,
     sellWizardTowersToAdjustMagic: () => void,
     maximizeWizardTowers: () => void,
@@ -56,6 +66,7 @@ export type SPCC_t = {
     seasonsGrind: () => void,
     miscellaneousGrind: () => void,
     roundOfPurchases: (options?: RoundOfPurchasesOptions) => boolean,
+    buildingsAsReservoirsPurchaseTrick: (options: ReservoirTrickOptions) => boolean,
     nextCheck: () => boolean,
     nextCheckState: 'inactive' | 'waiting' | 'check',
 };
@@ -195,7 +206,8 @@ function initBrowserUtilities() {
     /* Adds a building special
      * for the building with the most buildings that does not yet have an active building special.
      */
-    function gainBuildingSpecial() {
+    function gainBuildingSpecial(options?: GainBuildingSpecialOptions) {
+        if(!options) options = {useHighest: false};
         function hasBuildingSpecial(id: number) {
             for(let i in Game.buffs) {
                 if(Game.buffs[i].type.name == 'building buff' && Game.buffs[i].arg2 == id) {
@@ -204,23 +216,30 @@ function initBrowserUtilities() {
             }
             return false;
         }
-        let highest = -1;
-        for(let i = 0; i < Game.ObjectsById.length; i++) {
-            if(hasBuildingSpecial(i)) continue;
-            if(highest == -1) {
-                highest = i;
-            } else if(Game.ObjectsById[i].amount > Game.ObjectsById[highest].amount) {
-                highest = i;
+        function amountOf(buildingId: number) {
+            if(options!.useHighest) {
+                return Game.ObjectsById[buildingId].highest;
+            } else {
+                return Game.ObjectsById[buildingId].amount;
             }
         }
 
-        if(highest == -1) {
+        let m = -1;
+        for(let i = 0; i < Game.ObjectsById.length; i++) {
+            if(hasBuildingSpecial(i)) continue;
+            if(m == -1) {
+                m = i;
+            } else if(amountOf(i) > amountOf(m)) {
+                m = i;
+            }
+        }
+
+        if(m == -1) {
             console.log('Maximum building specials reached');
             return false;
         } else {
-            let buffPower = Game.ObjectsById[highest].amount/10 + 1;
-
-            Game.gainBuff('building buff', Math.ceil(30 * buffTimeModifier()), buffPower, highest);
+            let buffPower = amountOf(m)/10 + 1;
+            Game.gainBuff('building buff', Math.ceil(30 * buffTimeModifier()), buffPower, m);
             return true;
         }
     }
@@ -711,6 +730,78 @@ function initBrowserUtilities() {
         return purchasedSomething;
     }
 
+    /* Purchases buildings following the very last trick
+     * from Sisyphus Plays Cookie Clicker III.
+     * Returns true if any building has been purchased, and false otherwise.
+     * Will destructively change the building amounts.
+     */
+    function buildingsAsReservoirsPurchaseTrick(options: ReservoirTrickOptions) {
+        let pantheon;
+        if(Game.isMinigameReady(Game.Objects['Temple'])) {
+            pantheon = Game.Objects['Temple'].minigame;
+        } else {
+            pantheon = null;
+        }
+        let purchasedSomething = false;
+
+        /* This is the amount of cookies we know for sure we can reach,
+         * as many times as we need.
+         */
+        let reachableCookieAmount = Game.cookies;
+        if(options.startingBank) {
+            reachableCookieAmount = options.startingBank;
+        }
+        for(let i = 0; i < options.buildingsOrder.length; i++) {
+            let obj = Game.ObjectsById[options.buildingsOrder[i]];
+
+            // Maximize building discounts
+            if(Game.resets > 0) {
+                Game.gainBuff('everything must go', Math.ceil(8*buffTimeModifier()), 5);
+            }
+            Game.gainBuff('pixie luck', 60, 2);
+            fillGardenWith({plant: 'cheapcap', plant2: 'nursetulip'});
+            fillGardenWith({plant: null, plant2: 'cheapcap', buds: true});
+            if(pantheon) {
+                pantheon.slotGod(pantheon.gods['creation'], 0);
+            }
+
+            let previousAmount = obj.amount;
+            let previousHighest = obj.highest;
+            /* We can always reach that cookie amount,
+             * so we purchase the current building until we can't anymore.
+             *
+             * First, we get rid of that building's current amount,
+             * because this function could have been called before with a different order
+             * and we are trying to use the current building to get more of the later buildings.
+             *
+             * Since we will purchase that building anyway, we start close to the limit.
+             * The "- 5" in the formula below is a fudge factor to account for e.g. discounts.
+             */
+            obj.amount = Math.floor(Math.log(reachableCookieAmount/obj.basePrice)/Math.log(1.15) - 5);
+            while(obj.getPrice(1) <= reachableCookieAmount) {
+                obj.buyFree(1);
+                if(options.reportOnlyChangeInHighest && obj.highest > previousHighest) {
+                    purchasedSomething = true;
+                }
+                if(!options.reportOnlyChangeInHighest && obj.amount > previousAmount) {
+                    purchasedSomething = true;
+                }
+                if(obj.buyFunction) obj.buyFunction();
+            }
+
+            // Now we sell it.
+            Game.killBuffs();
+            fillGardenWith({plant: 'whiskerbloom'}); // Just to get rid of the cheapcaps
+            if(pantheon) {
+                pantheon.slotGod(pantheon.gods['creation'], -1);
+            }
+            // Cannot get both crafty pixies and nasty goblins past 9 quadrillion spells cast
+
+            reachableCookieAmount += obj.getReverseSumPrice(obj.amount);
+        }
+        return purchasedSomething;
+    }
+
     Game.registerHook('check', () => {
         if(window.SPCC.nextCheckState == 'waiting') {
             window.SPCC.nextCheckState = 'check';
@@ -773,6 +864,7 @@ function initBrowserUtilities() {
         seasonsGrind,
         miscellaneousGrind,
         roundOfPurchases,
+        buildingsAsReservoirsPurchaseTrick,
         nextCheck,
         nextCheckState: 'inactive',
     };
