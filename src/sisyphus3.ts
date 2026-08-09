@@ -144,6 +144,9 @@ await page.evaluate(() => {
 while(true) {
     await page.evaluate(() => {
         Game.killBuffs();
+        Game.takeLoan!(1);
+        Game.takeLoan!(2);
+        Game.takeLoan!(3);
         window.SPCC.gainEndlessFrenzy();
         Game.gainBuff('sugar blessing', 86400, 1);
         Game.gainBuff('click frenzy', Math.ceil(13 * window.SPCC.buffTimeModifier()), 777);
@@ -184,6 +187,9 @@ let cpc: number;
 while(true) {
     cpc = await page.evaluate(() => {
         Game.killBuffs();
+        Game.takeLoan!(1);
+        Game.takeLoan!(2);
+        Game.takeLoan!(3);
         window.SPCC.fillGardenWith({plant: 'whiskerbloom', plant2: 'nursetulip'});
         window.SPCC.fillGardenWith({plant: null, plant2: 'whiskerbloom', buds: true});
         let pantheon = Game.Objects['Temple'].minigame;
@@ -248,11 +254,15 @@ await page.evaluate(prev => Game.cookies = prev, previousGameCookies);
 while(true) {
     cpc = await page.evaluate(() => {
         window.SPCC.roundOfPurchases(); // Undoes the selling from the last save
+
+        Game.killBuffs();
+        Game.takeLoan!(1);
+        Game.takeLoan!(2);
+        Game.takeLoan!(3);
         window.SPCC.fillGardenWith({plant: 'whiskerbloom', plant2: 'nursetulip'});
         window.SPCC.fillGardenWith({plant: null, plant2: 'whiskerbloom', buds: true});
         let pantheon = Game.Objects['Temple'].minigame;
         pantheon.slotGod(pantheon.gods['mother'], 0);
-        Game.killBuffs();
         window.SPCC.gainEndlessFrenzy();
         Game.gainBuff('sugar blessing', 86400, 1);
         Game.gainBuff('click frenzy', Math.ceil(13 * window.SPCC.buffTimeModifier()), 777);
