@@ -606,14 +606,14 @@ function initBrowserUtilities() {
         Game.Win("Baby it's old outside");
 
         /* Easter eggs are unlocked by the for-loop above,
-         * but the check in Game.Logic only happens if the season is 'easter'
+         * but the check in Game.Logic only happens if the season is 'easter'.
+         * (We still unlock all achievements because they are based on unlocking the eggs,
+         * rather than purchasing them.)
          */
         Game.Win('The hunt is on');
         Game.Win('Egging on');
         Game.Win('Mass Easteria');
-        if(Game.Has('Legacy')) {
-            Game.Win('Hide & seek champion'); // We only purchase Chocolate egg before ascending
-        }
+        Game.Win('Hide & seek champion');
     }
 
     /* Maximizes all sorts of counters and miscellanea in the game,
