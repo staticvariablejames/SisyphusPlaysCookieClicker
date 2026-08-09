@@ -128,7 +128,7 @@ await page.evaluate(() => {
      */
     function findGFD(towerCounts: number[], startSeed: string = 'aaaaa') {
         let trueSetTimeout = setTimeout;
-        (window as any).setTimeout = (f: () => void) => f();
+        (window as any).setTimeout = (f: () => void) => f(); // Evil but works
     outerLoop:
         for(let seed of seedIterator(startSeed)) {
             for(let towerCount of towerCounts) {
