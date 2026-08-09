@@ -47,6 +47,7 @@ export type SPCC_t = {
     limitIEEE754: (summand: number) => number,
     factorTillNextPowerOfTwo: (x: number) => number,
     setCookies: (cookies: number) => void,
+    earnUpgrade: (upgradeName: string) => void,
     fillGardenWith: (options: FillGardenOptions) => void,
     buffTimeModifier: () => number,
     gainEndlessFrenzy: () => void,
@@ -107,6 +108,25 @@ function initBrowserUtilities() {
     function setCookies(cookies: number) {
         Game.cookies = Math.max(Game.cookies, cookies);
         Game.cookiesEarned = Math.max(Game.cookiesEarned, cookies); // Prevents CCTA
+    }
+
+    /* Helper function.
+     * Calls the given upgrade's .earn() function,
+     * but only if the upgrade is not yet owned.
+     *
+     * This function is needed because calling .earn() increments Game.UpgradesOwned,
+     * even if the upgrade is already owned.
+     */
+    function earnUpgrade(upgradeName: string) {
+        if(!(upgradeName in Game.Upgrades)) {
+            console.log(`[SPCC] Upgrade not found: ${upgradeName}`);
+            return;
+        }
+        if(Game.Has(upgradeName)) {
+            // Upgrade already owned
+            return;
+        }
+        Game.Upgrades[upgradeName].earn();
     }
 
     /* Helper function.
@@ -539,11 +559,11 @@ function initBrowserUtilities() {
         if(!options.maxStage) options.maxStage = 3;
 
         // These upgrades can be obtained without starting the grandmapocalypse
-        Game.Upgrades['Bingo center/Research facility'].earn();
-        Game.Upgrades['Specialized chocolate chips'].earn();
-        Game.Upgrades['Designer cocoa beans'].earn();
-        Game.Upgrades['Ritual rolling pins'].earn();
-        Game.Upgrades['Underworld ovens'].earn();
+        earnUpgrade('Bingo center/Research facility');
+        earnUpgrade('Specialized chocolate chips');
+        earnUpgrade('Designer cocoa beans');
+        earnUpgrade('Ritual rolling pins');
+        earnUpgrade('Underworld ovens');
 
         Game.elderWrath = 0;
         if(options.maxStage <= 0) {
@@ -551,8 +571,8 @@ function initBrowserUtilities() {
         }
 
         // These are only achievable by starting the grandmapocalypse
-        Game.Upgrades['One mind'].earn();
-        Game.Upgrades['Exotic nuts'].earn();
+        earnUpgrade('One mind');
+        earnUpgrade('Exotic nuts');
         Game.Win('Wrath cookie');
         Game.Win('Wrinkler poker');
         Game.Win('Sweetmeats'); // We did not get this one in nineQuadrillionLumps
@@ -567,16 +587,16 @@ function initBrowserUtilities() {
             return;
         }
 
-        Game.Upgrades['Communal brainsweep'].earn();
-        Game.Upgrades['Arcane sugar'].earn();
+        earnUpgrade('Communal brainsweep');
+        earnUpgrade('Arcane sugar');
 
         Game.elderWrath = 2;
         if(options.maxStage <= 2) {
             return;
         }
 
-        Game.Upgrades['Elder Pact'].earn();
-        Game.Upgrades['Sacrificial rolling pins'].earn();
+        earnUpgrade('Elder Pact');
+        earnUpgrade('Sacrificial rolling pins');
 
         Game.Win('Grandmapocalypse');
         Game.Win('Elder nap');
@@ -587,7 +607,7 @@ function initBrowserUtilities() {
         Game.elderWrath = 3;
 
         if(options.pledge) {
-            Game.Upgrades['Elder Pledge'].earn(); // Exits the grandmapocalypse
+            earnUpgrade('Elder Pledge'); // Exits the grandmapocalypse
         }
     }
 
@@ -596,7 +616,7 @@ function initBrowserUtilities() {
             Game.Upgrades[upgradeName].unlock();
         }
 
-        Game.Upgrades['A festive hat'].earn();
+        earnUpgrade('A festive hat');
         Game.specialTab = 'santa';
         for(let i = 0; i < 14; i++) Game.UpgradeSanta();
         Game.reindeerClicked = 2**53;
@@ -791,7 +811,7 @@ function initBrowserUtilities() {
 
             // Now we sell it.
             Game.killBuffs();
-            fillGardenWith({plant: 'whiskerbloom'}); // Just to get rid of the cheapcaps
+            Game.Objects['Farm'].minigame.harvestAll();
             if(pantheon) {
                 pantheon.slotGod(pantheon.gods['creation'], -1);
             }
@@ -845,6 +865,7 @@ function initBrowserUtilities() {
         limitIEEE754,
         factorTillNextPowerOfTwo,
         setCookies,
+        earnUpgrade,
         fillGardenWith,
         buffTimeModifier,
         gainEndlessFrenzy,

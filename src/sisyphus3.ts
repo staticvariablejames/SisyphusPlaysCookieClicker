@@ -40,7 +40,7 @@ await page.evaluate(() => {
     window.SPCC.seasonsGrind();
     window.SPCC.miscellaneousGrind();
     window.SPCC.nineQuadrillionStocks();
-    Game.Upgrades['Birthday cookie'].earn();
+    window.SPCC.earnUpgrade('Birthday cookie');
     window.SPCC.grindGrandmapocalypse({maxStage: 2});
 
     // Planting nursetulips first triggers the "ghost nursetulips bug"
@@ -54,8 +54,6 @@ await page.evaluate(() => {
     l('templeSlot1')!.appendChild(l(`templeGod${pantheon.slot[1]}`)!);
     // Simulates a perfectly-timed Cyclius
     Game.registerHook('cps', cps => cps * 1.15);
-
-    Game.Objects['Temple'].minigame.slotGod(Game.Objects['Temple'].minigame.gods['mother'], 0);
 
     Game.Objects['Wizard tower'].amount = 321;
 });
@@ -254,6 +252,7 @@ await page.evaluate(prev => Game.cookies = prev, previousGameCookies);
 while(true) {
     cpc = await page.evaluate(() => {
         window.SPCC.roundOfPurchases(); // Undoes the selling from the last save
+        window.SPCC.grindGrandmapocalypse({maxStage: 3, pledge: true});
 
         Game.killBuffs();
         Game.takeLoan!(1);
