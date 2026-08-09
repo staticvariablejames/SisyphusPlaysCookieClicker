@@ -220,6 +220,15 @@ while(true) {
     }
 }
 
+/* We write save here, before the sale of all buildings,
+ * so that any player wishing to verify Sisyphus game state can more easily do so
+ * than if we saved after selling everything.
+ * Players can simply sell the buildings themselves.
+ *
+ * TODO: also activate the buffs?
+ */
+await writeSaveFile(page, './saves/sisyphus3-4.cki');
+
 let previousGameCookies = await page.evaluate(() => {
     let previousGameCookies = Game.cookies;
     for(let i = 0; i < Game.ObjectsById.length; i++) {
@@ -235,7 +244,6 @@ console.log(await page.evaluate(cpc => {
            ", factor till next power of two: " +
            window.SPCC.factorTillNextPowerOfTwo(cpc);
 }, cpc));
-await writeSaveFile(page, './saves/sisyphus3-4.cki');
 // await page.pause();
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -303,6 +311,8 @@ while(true) {
     }
 }
 
+await writeSaveFile(page, './saves/sisyphus3-5.cki');
+
 await page.evaluate(() => {
     for(let i = 0; i < Game.ObjectsById.length; i++) {
         Game.ObjectsById[i].sell(Game.ObjectsById[i].amount, false as any); // TODO @types/cookieclicker
@@ -318,7 +328,6 @@ console.log(await page.evaluate(cpc => {
            ", factor till next power of two: " +
            window.SPCC.factorTillNextPowerOfTwo(cpc);
 }, cpc));
-await writeSaveFile(page, './saves/sisyphus3-5.cki');
 // await page.pause();
 
 await page.close();
