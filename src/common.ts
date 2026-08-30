@@ -28,6 +28,7 @@ type GrindGrandmapocalypseOptions = {
 
 type RoundOfPurchasesOptions = {
     limitTowers?: boolean;
+    limitYous?: boolean;
 };
 
 type ReservoirTrickOptions = {
@@ -51,21 +52,24 @@ export type SPCC_t = {
     fillGardenWith: (options: FillGardenOptions) => void,
     buffTimeModifier: () => number,
     gainEndlessFrenzy: () => void,
+    gainEndlessDragonHarvest: () => void,
     gainBuildingSpecial: (options?: GainBuildingSpecialOptions) => boolean,
     gainMaximumGodzamok: () => void,
     sellWizardTowersToAdjustMagic: () => void,
     maximizeWizardTowers: () => void,
-    ultimateFtHoFCombo: (options?: UltimateFtHoFComboOptions) => void,
+    ultimateFtHoFCombo: (options?: UltimateFtHoFComboOptions) => number,
     nineQuadrillionYears: () => void,
     nineQuadrillionClicks: () => void,
     nineQuadrillionTicks: () => void,
     nineQuadrillionWrinklers: () => void,
+    nineQuadrillionAscensions: () => void,
     nineQuadrillionStocks: () => void,
     nineQuadrillionLumps: (amount: number) => void,
     levelUpMostBuildings: () => void,
     grindGrandmapocalypse: (options?: GrindGrandmapocalypseOptions) => void,
     seasonsGrind: () => void,
     miscellaneousGrind: () => void,
+    postAscensionsMiscellaneousGrind: () => void,
     roundOfPurchases: (options?: RoundOfPurchasesOptions) => boolean,
     buildingsAsReservoirsPurchaseTrick: (options: ReservoirTrickOptions) => boolean,
     nextCheck: () => boolean,
@@ -223,6 +227,15 @@ function initBrowserUtilities() {
         Game.gainBuff('frenzy', Math.ceil(2**54/Game.fps), 7);
     }
 
+    /* Grants an endless Dragon harvest to the player.
+     */
+    function gainEndlessDragonHarvest() {
+        Game.gainBuff('dragon harvest', Math.ceil(2**54/Game.fps), 15);
+        /* Game.buffTypesByName['dragon harvest'].func
+         * turns that 15 into a 17 if the player owns Dragon fang.
+         */
+    }
+
     /* Adds a building special
      * for the building with the most buildings that does not yet have an active building special.
      */
@@ -266,7 +279,7 @@ function initBrowserUtilities() {
 
     function gainMaximumGodzamok() {
         // Presumably Cursors is the building we have the most of
-        let buildings = Game.Objects['Cursor'].amount;
+        let buildings = Game.Objects['Cursor'].highest;
         let power = limitIEEE754(buildings * 0.01);
         Game.gainBuff('devastation', Math.ceil(2**54/Game.fps), power);
         // TODO: this can still be time-stretched, replace it with time cap
@@ -307,7 +320,7 @@ function initBrowserUtilities() {
     function ultimateFtHoFCombo(options?: UltimateFtHoFComboOptions) {
         if(!options) options = {};
         if(!options.verbose) options.verbose = 0;
-        if(!Game.isMinigameReady(Game.Objects['Wizard tower'])) return false;
+        if(!Game.isMinigameReady(Game.Objects['Wizard tower'])) return -1;
         let logs: string[] = [];
         let grimoire = Game.Objects['Wizard tower'].minigame;
         let fthof = grimoire.spells['hand of fate'];
@@ -363,16 +376,17 @@ function initBrowserUtilities() {
         }
 
         maximizeWizardTowers();
+        let leftoverCasts = 0;
         for(let i = 0; i < totalFtHoFcasts; i++) {
             if(!gainBuildingSpecial()) {
-                return false;
+                leftoverCasts++;
             }
         }
 
         if(options.verbose) {
             console.log(`[SPCC] ${logs.length} casts: ${logs.join(', ')}`);
         }
-        return true;
+        return leftoverCasts;
     }
 
     /* Trigger effects that happen after waiting for a very long time.
@@ -479,6 +493,48 @@ function initBrowserUtilities() {
         Game.cookiesSucked = Math.max(Game.cookiesSucked, limitIEEE754(cookieGainPerWrinkler));
     }
 
+    function nineQuadrillionAscensions() {
+        Game.resets = 2**53;
+        Game.Win('Rebirth');
+        Game.Win('Resurrection');
+        Game.Win('Reincarnation');
+        Game.Win('Endless cycle');
+
+        let cookiesToForfeit = Game.cookies;
+        for(let building of Game.ObjectsById) {
+            cookiesToForfeit += building.getReverseSumPrice(building.amount);
+        }
+        Game.cookiesEarned = Math.max(Game.cookiesEarned, cookiesToForfeit);
+        if(Game.Upgrades['Chocolate egg'].unlocked) {
+            cookiesToForfeit *= 1.05;
+        }
+        Game.cookiesReset = Math.max(Game.cookiesReset, limitIEEE754(cookiesToForfeit));
+        Game.prestige = Math.floor(Game.HowMuchPrestige(Game.cookiesReset));
+
+        // Achievements from ascending. (Technically I should check if the player scored enough)
+        Game.Win('Sacrifice');
+        Game.Win('Oblivion');
+        Game.Win('From scratch');
+        Game.Win('Nihilism');
+        Game.Win('Dematerialize');
+        Game.Win('Nil zero zilch');
+        Game.Win('Transcendence');
+        Game.Win('Obliterate');
+        Game.Win('Negative void');
+        Game.Win('To crumbs, you say?');
+        Game.Win('You get nothing');
+        Game.Win('Humble rebeginnings');
+        Game.Win('The end of the world');
+        Game.Win('Oh, you\'re back');
+        Game.Win('Lazarus');
+        Game.Win('Smurf account');
+        Game.Win('If at first you don\'t succeed');
+        Game.Win('No more room in hell');
+
+        // Precision limit should make purchases of heavenly upgrades not matter
+        Game.heavenlyChips = Math.max(Game.heavenlyChips, Game.prestige);
+    }
+
     /* Fills warehouses and sells them all nine quadrillion times.
      */
     function nineQuadrillionStocks() {
@@ -557,6 +613,7 @@ function initBrowserUtilities() {
     function grindGrandmapocalypse(options?: GrindGrandmapocalypseOptions) {
         if(!options) options = {maxStage: 3, pledge: true};
         if(!options.maxStage) options.maxStage = 3;
+        Game.Lock('Elder Pledge');
 
         // These upgrades can be obtained without starting the grandmapocalypse
         earnUpgrade('Bingo center/Research facility');
@@ -709,12 +766,52 @@ function initBrowserUtilities() {
         }
     }
 
+    /* Like miscellaneousGrind,
+     * but for things that are accessible only after ascending.
+     */
+    function postAscensionsMiscellaneousGrind() {
+        Game.Win('Speed baking I')
+        Game.Win('Speed baking II')
+        Game.Win('Speed baking III')
+
+        if(Game.Has('Reinforced membrane')) {
+            Game.Win('Thick-skinned');
+        }
+
+        if(Game.Has('Wrapping paper')) {
+            Game.Win('No time like the present');
+        }
+
+        if(Game.isMinigameReady(Game.Objects['Bank'])) {
+            Game.Win('Debt evasion');
+        }
+
+        if(Game.Has('How to bake your dragon')) {
+            earnUpgrade('A crumbly egg');
+            Game.dragonLevel = Game.dragonLevels.length - 1;
+            Game.Win('Here be dragon');
+            Game.Upgrades['Dragon cookie'].unlock();
+            if(Game.Has('Pet the dragon')) {
+                for(let u of ['Dragon scale', 'Dragon claw', 'Dragon fang', 'Dragon teddy bear']) {
+                    Game.Upgrades[u].unlock();
+                }
+            }
+        }
+
+        if(Game.Has('Fortune cookies')) {
+            for(let upgrade of Game.Tiers['fortune'].upgrades) {
+                upgrade.unlock();
+            }
+        }
+    }
+
     /* Purchases all purchaseable upgrades and buildings,
      * but without actually spending cookies.
      *
      * If options.limitTowers is true,
-     * the Wizard Towers will only be purchased if the can be obtained "for free"
-     * (i.e. their price rounds to 0 compared to Game.cookies, according to the IEEE754 specification).
+     * the Wizard Towers will only be purchased if the can be obtained "for free";
+     * i.e. their price rounds to 0 compared to Game.cookies, according to the IEEE754 specification.
+     * The same applies for options.limitYous.
      */
     function roundOfPurchases(options?: RoundOfPurchasesOptions) {
         if(!options) options = {};
@@ -725,6 +822,9 @@ function initBrowserUtilities() {
             let obj = Game.Objects[i];
             let bound = Game.cookies;
             if(i == 'Wizard tower' && options.limitTowers) {
+                bound = Game.cookies / 2**53;
+            }
+            if(i == 'You' && options.limitYous) {
                 bound = Game.cookies / 2**53;
             }
 
@@ -778,6 +878,7 @@ function initBrowserUtilities() {
             if(Game.resets > 0) {
                 Game.gainBuff('everything must go', Math.ceil(8*buffTimeModifier()), 5);
             }
+            // TODO: Krumblor (Fierce Hoarder, Reality Bending). Earth Shatterer can be used already
             Game.gainBuff('pixie luck', 60, 2);
             fillGardenWith({plant: 'cheapcap', plant2: 'nursetulip'});
             fillGardenWith({plant: null, plant2: 'cheapcap', buds: true});
@@ -869,6 +970,7 @@ function initBrowserUtilities() {
         fillGardenWith,
         buffTimeModifier,
         gainEndlessFrenzy,
+        gainEndlessDragonHarvest,
         gainBuildingSpecial,
         gainMaximumGodzamok,
         sellWizardTowersToAdjustMagic,
@@ -878,12 +980,14 @@ function initBrowserUtilities() {
         nineQuadrillionClicks,
         nineQuadrillionTicks,
         nineQuadrillionWrinklers,
+        nineQuadrillionAscensions,
         nineQuadrillionStocks,
         nineQuadrillionLumps,
         levelUpMostBuildings,
         grindGrandmapocalypse,
         seasonsGrind,
         miscellaneousGrind,
+        postAscensionsMiscellaneousGrind,
         roundOfPurchases,
         buildingsAsReservoirsPurchaseTrick,
         nextCheck,
