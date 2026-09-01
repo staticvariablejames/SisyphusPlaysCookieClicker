@@ -26,7 +26,6 @@ let page = await openSisyphus({
             'Birthday cookie',
             'Chocolate egg',
         ],
-        volume: 0,
     },
     querySteamPlayers: 10000, // AKA 100 * heralds
 });
@@ -70,7 +69,16 @@ await page.evaluate(() => {
     window.SPCC.postAscensionsMiscellaneousGrind();
     window.SPCC.nineQuadrillionStocks();
     window.SPCC.earnUpgrade('Birthday cookie');
-    window.SPCC.grindGrandmapocalypse({maxStage: 3}); // For the achievements
+
+    window.SPCC.grindGrandmapocalypse({maxStage: 2});
+    /* Additionally, we get the following achievements
+     * from having gone through the grandmapocalypse in earlier ascensions.
+     */
+    Game.Win('Grandmapocalypse');
+    Game.Win('Elder nap');
+    Game.Win('Elder slumber');
+    Game.Win('Elder calm');
+    Game.pledges = 2**53;
 
     let pantheon = Game.Objects['Temple'].minigame;
     pantheon.slotGod(pantheon.gods['mother'], 0);
@@ -83,7 +91,7 @@ await page.evaluate(() => {
     Game.Objects['Wizard tower'].amount = 321;
 });
 
-let cps: number;
+let cps, previousGameCookies: number;
 
 while(true) {
     cps = await page.evaluate(() => {
@@ -93,11 +101,14 @@ while(true) {
         Game.gainBuff('sugar blessing', 86400, 1);
         window.SPCC.gainBuildingSpecial();
         window.SPCC.gainBuildingSpecial();
-        window.SPCC.ultimateFtHoFCombo({gfd: true});
         Game.gainBuff('blood frenzy', Math.ceil(6 * window.SPCC.buffTimeModifier()), 666);
 
         window.SPCC.fillGardenWith({plant: 'goldenClover', plant2: 'nursetulip'});
         window.SPCC.fillGardenWith({plant: 'whiskerbloom', buds: true});
+        /* Updates Game.effs, which matters to maximizeWizardTowers in ultimateFtHoFCombo.
+         */
+        Game.CalculateGains();
+        window.SPCC.ultimateFtHoFCombo({gfd: true});
         let pantheon = Game.Objects['Temple'].minigame;
         pantheon.slotGod(pantheon.gods['mother'], 0);
 
@@ -124,7 +135,7 @@ while(true) {
     }
 }
 
-let previousGameCookies = await sellAllBuildings();
+previousGameCookies = await sellAllBuildings();
 
 console.log(await page.evaluate(cps => {
     return "Save 1: " +
@@ -163,6 +174,9 @@ while(true) {
         Game.Upgrades['Golden switch [off]'].buy(0); // TODO: fix @types/cookieclicker
         Game.Upgrades['Shimmering veil [off]'].buy(0);
 
+        window.SPCC.fillGardenWith({plant: 'goldenClover', plant2: 'nursetulip'});
+        window.SPCC.fillGardenWith({plant: 'whiskerbloom', buds: true});
+        Game.CalculateGains();
         for(let i = 0; i < 7; i++) {
             window.SPCC.gainBuildingSpecial();
         }
@@ -171,8 +185,6 @@ while(true) {
         let leftoverCasts = window.SPCC.ultimateFtHoFCombo({gfd: true});
         Game.gainBuff('blood frenzy', Math.ceil(6 * window.SPCC.buffTimeModifier()), 666);
 
-        window.SPCC.fillGardenWith({plant: 'goldenClover', plant2: 'nursetulip'});
-        window.SPCC.fillGardenWith({plant: 'whiskerbloom', buds: true});
         let pantheon = Game.Objects['Temple'].minigame;
         pantheon.slotGod(pantheon.gods['mother'], 0);
 
@@ -191,7 +203,7 @@ while(true) {
         return Game.cookiesPs;
     });
 
-    // Now also must limit Yous to keep changing dragon auras
+    // Now also must limit "You"s to keep changing dragon auras
     if(!await exhaustPurchases(page, {limitTowers: true, limitYous: true})) {
         let trick = await page.evaluate(() => {
             Game.dragonAura = (Game as any).dragonAurasBN['Earth Shatterer'].id;
@@ -258,6 +270,7 @@ while(true) {
 
         window.SPCC.fillGardenWith({plant: 'whiskerbloom', plant2: 'nursetulip'});
         window.SPCC.fillGardenWith({plant: null, plant2: 'whiskerbloom', buds: true});
+        Game.CalculateGains();
         let pantheon = Game.Objects['Temple'].minigame;
         pantheon.slotGod(pantheon.gods['mother'], 0);
 
@@ -276,7 +289,6 @@ while(true) {
         let trick = await page.evaluate(() => {
             Game.dragonAura = (Game as any).dragonAurasBN['Earth Shatterer'].id;
             Game.dragonAura2 = (Game as any).dragonAurasBN['Reality Bending'].id;
-            // Must also skip Yous
             let order = [0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
             let out = window.SPCC.buildingsAsReservoirsPurchaseTrick({
                 buildingsOrder: order,
@@ -349,6 +361,7 @@ for(let i = 4; i <= 5; i++) {
              */
             window.SPCC.fillGardenWith({plant: 'goldenClover', plant2: 'nursetulip'});
             window.SPCC.fillGardenWith({plant: 'whiskerbloom', buds: true});
+            Game.CalculateGains();
             let pantheon = Game.Objects['Temple'].minigame;
             pantheon.slotGod(pantheon.gods['mother'], 0);
 
@@ -365,8 +378,6 @@ for(let i = 4; i <= 5; i++) {
 
         if(!await exhaustPurchases(page, {limitTowers: true, limitYous: true})) {
             let trick = await page.evaluate(() => {
-                Game.dragonAura = (Game as any).dragonAurasBN['Earth Shatterer'].id;
-                Game.dragonAura2 = (Game as any).dragonAurasBN['Reality Bending'].id;
                 let order = [0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
                 let startingBank = Game.cookies;
                 let hasChanged = false;
@@ -376,8 +387,11 @@ for(let i = 4; i <= 5; i++) {
                     order[i] = tmp;
                     if(window.SPCC.buildingsAsReservoirsPurchaseTrick({
                         buildingsOrder: order,
+                        calculateHighest: [7, 19],
                         reportOnlyChangeInHighest: true,
                         startingBank,
+                        krumblor: true,
+                        nastyGoblins: true,
                     }))
                     {
                         hasChanged = true;

@@ -33,8 +33,11 @@ type RoundOfPurchasesOptions = {
 
 type ReservoirTrickOptions = {
     buildingsOrder: number[],
+    calculateHighest?: number[],
     reportOnlyChangeInHighest?: boolean,
     startingBank?: number,
+    krumblor?: boolean,
+    nastyGoblins?: boolean,
 };
 
 /* Sisyphus Plays Cookie Clicker; aggregates helper functions.
@@ -854,6 +857,29 @@ function initBrowserUtilities() {
      * from Sisyphus Plays Cookie Clicker III.
      * Returns true if any building has been purchased, and false otherwise.
      * Will destructively change the building amounts.
+     *
+     * Arguments:
+     * - buildingsOrder: order at which buildings will be purchased and sold.
+     * - calculateHighest: list of building IDs whose .highest will be increased,
+     *      as if they were bought all at once using all the bank from selling all buildings.
+     *      "All at once" means that we buy however many we can afford,
+     *      rather than using the theoretical trick of purchasing the building until we can't afford.
+     *      This is most useful if the building is not in the list of buildingsOrder,
+     *      but we still want to use its .highest to feed gainBuildingSpecial({useHighest: true}).
+     * - reportOnlyChangeInHighest: if present, only returns "true"
+     *      if this function actually increases the .highest count of a building.
+     * - startingBank: How many cookies that we perform the trick with.
+     *      If absent, is assumed to be `Game.cookies`.
+     * - krumblor: Whether to use Krumblor or not.
+     *      The dragon auras Fierce Hoarder, Earth Shatterer, and Reality Bending
+     *      will be swapped in and out in this case.
+     * - nastyGoblins: whether to use a backfired Crafty Pixies to increase selling price.
+     *      Getting to use both a successful Crafty Pixies and its backfire
+     *      is tricky once the number of spells is past 2^53.
+     *      This can be done using Supreme Intellect and Reality Bending
+     *      to slightly increase the chance of backfire;
+     *      but doing so means that GFD's target spell will always backfire,
+     *      whence GFD->FtHoF is only usable to get more on-screen golden cookies.
      */
     function buildingsAsReservoirsPurchaseTrick(options: ReservoirTrickOptions) {
         let pantheon;
@@ -872,19 +898,28 @@ function initBrowserUtilities() {
             reachableCookieAmount = options.startingBank;
         }
         for(let i = 0; i < options.buildingsOrder.length; i++) {
+            /* Invariant: we can reach `reachableCookieAmount` cookies repeatably,
+             * using only buildings whose IDs are buildingsOrder[0]...buildingsOrder[i-1].
+             */
             let obj = Game.ObjectsById[options.buildingsOrder[i]];
 
             // Maximize building discounts
             if(Game.resets > 0) {
                 Game.gainBuff('everything must go', Math.ceil(8*buffTimeModifier()), 5);
             }
-            // TODO: Krumblor (Fierce Hoarder, Reality Bending). Earth Shatterer can be used already
+            if(options.krumblor) {
+                Game.dragonAura = (Game as any).dragonAurasBN['Fierce Hoarder'].id;
+                Game.dragonAura2 = (Game as any).dragonAurasBN['Reality Bending'].id;
+            }
+            Game.killBuffs();
             Game.gainBuff('pixie luck', 60, 2);
             fillGardenWith({plant: 'cheapcap', plant2: 'nursetulip'});
             fillGardenWith({plant: null, plant2: 'cheapcap', buds: true});
             if(pantheon) {
                 pantheon.slotGod(pantheon.gods['creation'], 0);
             }
+
+            Game.CalculateGains(); // Updates Game.effs, after fillGardenWith
 
             let previousAmount = obj.amount;
             let previousHighest = obj.highest;
@@ -912,14 +947,31 @@ function initBrowserUtilities() {
 
             // Now we sell it.
             Game.killBuffs();
+            if(options.krumblor) {
+                Game.dragonAura = (Game as any).dragonAurasBN['Earth Shatterer'].id;
+                Game.dragonAura2 = (Game as any).dragonAurasBN['Reality Bending'].id;
+            }
             Game.Objects['Farm'].minigame.harvestAll();
             if(pantheon) {
                 pantheon.slotGod(pantheon.gods['creation'], -1);
             }
-            // Cannot get both crafty pixies and nasty goblins past 9 quadrillion spells cast
+            if(options.nastyGoblins) {
+                Game.gainBuff('pixie misery', 60*60, 2);
+            }
 
             reachableCookieAmount += obj.getReverseSumPrice(obj.amount);
         }
+
+        if(options.calculateHighest) {
+            for(let i = 0; i < options.calculateHighest.length; i++) {
+                let obj = Game.ObjectsById[options.calculateHighest[i]];
+                while(obj.getSumPrice(obj.highest-obj.amount+1) <= reachableCookieAmount) {
+                    obj.highest++;
+                    purchasedSomething = true;
+                }
+            }
+        }
+
         return purchasedSomething;
     }
 
