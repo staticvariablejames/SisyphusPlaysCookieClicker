@@ -59,7 +59,8 @@ export type SPCC_t = {
     earnUpgrade: (upgradeName: string) => void,
     fillGardenWith: (options: FillGardenOptions) => void,
     buffTimeModifier: () => number,
-    cookiesAfterSelling: (options?: CookiesAfterSellingOptions) => number,
+    cookiesAfterSelling: (id: number) => number,
+    cookiesAfterSellingAll: (options?: CookiesAfterSellingOptions) => number,
     gainEndlessFrenzy: () => void,
     gainEndlessDragonHarvest: () => void,
     gainBuildingSpecial: (options?: GainBuildingSpecialOptions) => boolean,
@@ -229,13 +230,28 @@ function initBrowserUtilities() {
         return modifier;
     }
 
+    /* Computes how many cookies are obtained by selling all units
+     * of the building with the given id.
+     */
+    function cookiesAfterSelling(id: number) {
+        /* We cannot simply use getReverseSumPrice,
+         * because that function has an off-by-one error.
+         *
+         * For low building counts we'd need to reimplement the function,
+         * but anything beyond 263 buildings makes the beginning of the series irrelevant
+         * (they become literally rounding errors),
+         * so we can simply use getReverseSumPrice and multiply by 1.15.
+         */
+        return Game.ObjectsById[id].getReverseSumPrice(Game.ObjectsById[id].amount) * 1.15;
+    }
+
     /* Computes how many cookies can be obtained by selling all buildings
      * and purchasing the Chocolate egg.
      * Arguments:
      *  - krumblor: If true, sets the Earth Shatterer and Reality Bending auras on the dragon.
      *  - nastyGoblins: If true, backfires a Crafty Pixies spell before selling.
      */
-    function cookiesAfterSelling(options?: CookiesAfterSellingOptions) {
+    function cookiesAfterSellingAll(options?: CookiesAfterSellingOptions) {
         if(!options) options = {};
         let sum = Game.cookies;
         Game.killBuffs();
@@ -246,8 +262,10 @@ function initBrowserUtilities() {
         if(options.nastyGoblins) {
             Game.gainBuff('pixie misery', 60*60, 2);
         }
-        for(let obj of Game.ObjectsById) {
-            sum += obj.getReverseSumPrice(obj.amount);
+        Game.CalculateGains();
+
+        for(let i = 0; i < Game.ObjectsById.length; i++) {
+            sum += cookiesAfterSelling(i);
         }
         if(Game.Upgrades['Chocolate egg'].unlocked) {
             sum *= 1.05;
@@ -535,7 +553,7 @@ function initBrowserUtilities() {
         Game.Win('Reincarnation');
         Game.Win('Endless cycle');
 
-        let cookiesToForfeit = cookiesAfterSelling(options);
+        let cookiesToForfeit = cookiesAfterSellingAll(options);
         Game.cookiesReset = Math.max(Game.cookiesReset, limitIEEE754(cookiesToForfeit));
         Game.prestige = Math.floor(Game.HowMuchPrestige(Game.cookiesReset));
 
@@ -984,7 +1002,7 @@ function initBrowserUtilities() {
                 Game.gainBuff('pixie misery', 60*60, 2);
             }
 
-            reachableCookieAmount += obj.getReverseSumPrice(obj.amount);
+            reachableCookieAmount += cookiesAfterSelling(obj.id);
         }
 
         if(options.calculateHighest) {
@@ -1047,6 +1065,7 @@ function initBrowserUtilities() {
         fillGardenWith,
         buffTimeModifier,
         cookiesAfterSelling,
+        cookiesAfterSellingAll,
         gainEndlessFrenzy,
         gainEndlessDragonHarvest,
         gainBuildingSpecial,

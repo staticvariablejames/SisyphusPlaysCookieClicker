@@ -126,7 +126,7 @@ while(true) {
 
 console.log(await page.evaluate(cps => {
     return "Save 1: " +
-           window.Beautify(window.SPCC.cookiesAfterSelling()) + ' cookies, ' +
+           window.Beautify(window.SPCC.cookiesAfterSellingAll()) + ' cookies, ' +
            window.Beautify(Game.cookiesReset) + ' cookies sacrificed' +
            " - CpS is " + window.Beautify(cps) +
            ", factor till next power of two: " +
@@ -205,7 +205,7 @@ while(true) {
 
 console.log(await page.evaluate(cps => {
     return "Save 2: " +
-           window.Beautify(window.SPCC.cookiesAfterSelling()) + ' cookies, ' +
+           window.Beautify(window.SPCC.cookiesAfterSellingAll()) + ' cookies, ' +
            window.Beautify(Game.cookiesReset) + ' cookies sacrificed' +
            " - CpS is " + window.Beautify(cps) +
            ", factor till next power of two: " +
@@ -279,7 +279,7 @@ while(true) {
 }
 
 console.log(await page.evaluate(cps => {
-    let cookies = window.SPCC.cookiesAfterSelling({krumblor: true, nastyGoblins: true});
+    let cookies = window.SPCC.cookiesAfterSellingAll({krumblor: true, nastyGoblins: true});
     return "Save 3: " +
            window.Beautify(cookies) + ' cookies, ' +
            window.Beautify(Game.cookiesReset) + ' cookies sacrificed' +
@@ -381,7 +381,7 @@ for(let i = 4; i <= 5; i++) {
     }
 
     console.log(await page.evaluate(([cps, i]) => {
-        let cookies = window.SPCC.cookiesAfterSelling({krumblor: true, nastyGoblins: true});
+        let cookies = window.SPCC.cookiesAfterSellingAll({krumblor: true, nastyGoblins: true});
         return `Save ${i}: ` +
                window.Beautify(cookies) + ' cookies ' +
                `(${cookies} = 2^${Math.log2(cookies)}); ` +
