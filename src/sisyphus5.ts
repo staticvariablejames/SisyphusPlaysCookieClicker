@@ -30,17 +30,6 @@ let page = await openSisyphus({
     querySteamPlayers: 10000, // AKA 100 * heralds
 });
 
-// Sells all buildings and return the previous value of Game.cookies
-async function sellAllBuildings() {
-    return await page.evaluate(() => {
-        let previousGameCookies = Game.cookies;
-        for(let i = 0; i < Game.ObjectsById.length; i++) {
-            Game.ObjectsById[i].sell(Game.ObjectsById[i].amount, false as any);
-        }
-        return previousGameCookies;
-    });
-}
-
 await page.evaluate(() => {
     /* The previous best was 2.3166211683437614e+152, but we lost most of GFD's power,
      * so we start again with just the best from part II.
@@ -91,7 +80,7 @@ await page.evaluate(() => {
     Game.Objects['Wizard tower'].amount = 321;
 });
 
-let cps, previousGameCookies: number;
+let cps: number;
 
 while(true) {
     cps = await page.evaluate(() => {
@@ -135,11 +124,9 @@ while(true) {
     }
 }
 
-previousGameCookies = await sellAllBuildings();
-
 console.log(await page.evaluate(cps => {
     return "Save 1: " +
-           window.Beautify(Game.cookies) + ' cookies, ' +
+           window.Beautify(window.SPCC.cookiesAfterSelling()) + ' cookies, ' +
            window.Beautify(Game.cookiesReset) + ' cookies sacrificed' +
            " - CpS is " + window.Beautify(cps) +
            ", factor till next power of two: " +
@@ -157,11 +144,6 @@ await writeSaveFile(page, './saves/sisyphus5-1.cki');
  * Dragon's Fortune and Radiant Appetite for getting more cookies,
  * and Earth Shatterer to power the buildings-as-reservoirs trick.
  */
-await page.evaluate(prev => {
-    Game.cookies = prev;
-    window.SPCC.roundOfPurchases();
-}, previousGameCookies);
-
 while(true) {
     cps = await page.evaluate(() => {
         Game.killBuffs();
@@ -221,10 +203,9 @@ while(true) {
     }
 }
 
-previousGameCookies = await sellAllBuildings();
 console.log(await page.evaluate(cps => {
     return "Save 2: " +
-           window.Beautify(Game.cookies) + ' cookies, ' +
+           window.Beautify(window.SPCC.cookiesAfterSelling()) + ' cookies, ' +
            window.Beautify(Game.cookiesReset) + ' cookies sacrificed' +
            " - CpS is " + window.Beautify(cps) +
            ", factor till next power of two: " +
@@ -237,13 +218,9 @@ await writeSaveFile(page, './saves/sisyphus5-2.cki');
  *                                Save File 3                                *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  * Endless Godzamok; Dragonflight; 16 on-screen golden cookies.
+ * But we lose the Birthday cookie.
  */
-await page.evaluate(prev => {
-    Game.cookies = prev;
-    window.SPCC.roundOfPurchases();
-    Game.Upgrades['Birthday cookie'].unearn();
-}, previousGameCookies);
-
+await page.evaluate(() => Game.Upgrades['Birthday cookie'].unearn());
 while(true) {
     cps = await page.evaluate(() => {
         Game.killBuffs();
@@ -281,7 +258,7 @@ while(true) {
         }
 
         window.SPCC.nineQuadrillionClicks();
-        window.SPCC.nineQuadrillionAscensions();
+        window.SPCC.nineQuadrillionAscensions({krumblor: true, nastyGoblins: true});
         return Game.cookiesPs;
     });
 
@@ -301,10 +278,10 @@ while(true) {
     }
 }
 
-previousGameCookies = await sellAllBuildings();
 console.log(await page.evaluate(cps => {
+    let cookies = window.SPCC.cookiesAfterSelling({krumblor: true, nastyGoblins: true});
     return "Save 3: " +
-           window.Beautify(Game.cookies) + ' cookies, ' +
+           window.Beautify(cookies) + ' cookies, ' +
            window.Beautify(Game.cookiesReset) + ' cookies sacrificed' +
            " - CpS is " + window.Beautify(cps) +
            ", factor till next power of two: " +
@@ -323,11 +300,6 @@ for(let i = 4; i <= 5; i++) {
      * Additionally, for save file 5,
      * we add back the Birthday cookie.
      */
-    await page.evaluate(prev => {
-        Game.cookies = prev;
-        window.SPCC.roundOfPurchases();
-    }, previousGameCookies);
-
     if(i == 5) {
         await page.evaluate(() => Game.Upgrades['Birthday cookie'].earn());
     }
@@ -367,12 +339,12 @@ for(let i = 4; i <= 5; i++) {
 
             Game.dragonAura = (Game as any).dragonAurasBN["Dragon's Fortune"].id;
             Game.dragonAura2 = (Game as any).dragonAurasBN['Reality Bending'].id;
-            for(let i = 0; i < 19; i++) {
+            for(let i = 0; i < 18; i++) {
                 new Game.shimmer('golden');
             }
 
             window.SPCC.nineQuadrillionClicks();
-            window.SPCC.nineQuadrillionAscensions();
+            window.SPCC.nineQuadrillionAscensions({krumblor: true, nastyGoblins: true});
             return Game.cookiesPs;
         });
 
@@ -408,11 +380,11 @@ for(let i = 4; i <= 5; i++) {
         }
     }
 
-    previousGameCookies = await sellAllBuildings();
     console.log(await page.evaluate(([cps, i]) => {
+        let cookies = window.SPCC.cookiesAfterSelling({krumblor: true, nastyGoblins: true});
         return `Save ${i}: ` +
-               window.Beautify(Game.cookies) + ' cookies ' + 
-               `(${Game.cookies} = 2^${Math.log2(Game.cookies)}); ` +
+               window.Beautify(cookies) + ' cookies ' +
+               `(${cookies} = 2^${Math.log2(cookies)}); ` +
                window.Beautify(Game.cookiesReset) + ' cookies sacrificed ' +
                `(${Game.cookiesReset} = 2^${Math.log2(Game.cookiesReset)})` +
                " - CpS is " + window.Beautify(cps) +

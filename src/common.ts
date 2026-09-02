@@ -11,6 +11,11 @@ type FillGardenOptions = {
     buds?: boolean,
 };
 
+type CookiesAfterSellingOptions = {
+    krumblor?: boolean,
+    nastyGoblins?: boolean,
+};
+
 type GainBuildingSpecialOptions = {
     useHighest: boolean,
 };
@@ -54,6 +59,7 @@ export type SPCC_t = {
     earnUpgrade: (upgradeName: string) => void,
     fillGardenWith: (options: FillGardenOptions) => void,
     buffTimeModifier: () => number,
+    cookiesAfterSelling: (options?: CookiesAfterSellingOptions) => number,
     gainEndlessFrenzy: () => void,
     gainEndlessDragonHarvest: () => void,
     gainBuildingSpecial: (options?: GainBuildingSpecialOptions) => boolean,
@@ -65,7 +71,7 @@ export type SPCC_t = {
     nineQuadrillionClicks: () => void,
     nineQuadrillionTicks: () => void,
     nineQuadrillionWrinklers: () => void,
-    nineQuadrillionAscensions: () => void,
+    nineQuadrillionAscensions: (options?: CookiesAfterSellingOptions) => void,
     nineQuadrillionStocks: () => void,
     nineQuadrillionLumps: (amount: number) => void,
     levelUpMostBuildings: () => void,
@@ -221,6 +227,32 @@ function initBrowserUtilities() {
         }
 
         return modifier;
+    }
+
+    /* Computes how many cookies can be obtained by selling all buildings
+     * and purchasing the Chocolate egg.
+     * Arguments:
+     *  - krumblor: If true, sets the Earth Shatterer and Reality Bending auras on the dragon.
+     *  - nastyGoblins: If true, backfires a Crafty Pixies spell before selling.
+     */
+    function cookiesAfterSelling(options?: CookiesAfterSellingOptions) {
+        if(!options) options = {};
+        let sum = Game.cookies;
+        Game.killBuffs();
+        if(options.krumblor) {
+            Game.dragonAura = (Game as any).dragonAurasBN['Earth Shatterer'].id;
+            Game.dragonAura2 = (Game as any).dragonAurasBN['Reality Bending'].id;
+        }
+        if(options.nastyGoblins) {
+            Game.gainBuff('pixie misery', 60*60, 2);
+        }
+        for(let obj of Game.ObjectsById) {
+            sum += obj.getReverseSumPrice(obj.amount);
+        }
+        if(Game.Upgrades['Chocolate egg'].unlocked) {
+            sum *= 1.05;
+        }
+        return sum;
     }
 
     /* Grants an endless frenzy to the player.
@@ -496,21 +528,14 @@ function initBrowserUtilities() {
         Game.cookiesSucked = Math.max(Game.cookiesSucked, limitIEEE754(cookieGainPerWrinkler));
     }
 
-    function nineQuadrillionAscensions() {
+    function nineQuadrillionAscensions(options?: CookiesAfterSellingOptions) {
         Game.resets = 2**53;
         Game.Win('Rebirth');
         Game.Win('Resurrection');
         Game.Win('Reincarnation');
         Game.Win('Endless cycle');
 
-        let cookiesToForfeit = Game.cookies;
-        for(let building of Game.ObjectsById) {
-            cookiesToForfeit += building.getReverseSumPrice(building.amount);
-        }
-        Game.cookiesEarned = Math.max(Game.cookiesEarned, cookiesToForfeit);
-        if(Game.Upgrades['Chocolate egg'].unlocked) {
-            cookiesToForfeit *= 1.05;
-        }
+        let cookiesToForfeit = cookiesAfterSelling(options);
         Game.cookiesReset = Math.max(Game.cookiesReset, limitIEEE754(cookiesToForfeit));
         Game.prestige = Math.floor(Game.HowMuchPrestige(Game.cookiesReset));
 
@@ -1021,6 +1046,7 @@ function initBrowserUtilities() {
         earnUpgrade,
         fillGardenWith,
         buffTimeModifier,
+        cookiesAfterSelling,
         gainEndlessFrenzy,
         gainEndlessDragonHarvest,
         gainBuildingSpecial,
