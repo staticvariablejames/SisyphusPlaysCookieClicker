@@ -94,8 +94,7 @@ while(true) {
 
         window.SPCC.fillGardenWith({plant: 'goldenClover', plant2: 'nursetulip'});
         window.SPCC.fillGardenWith({plant: 'whiskerbloom', buds: true});
-        /* Updates Game.effs, which matters to maximizeWizardTowers in ultimateFtHoFCombo.
-         */
+        // Updates Game.effs, which matters to maximizeWizardTowers in ultimateFtHoFCombo.
         Game.CalculateGains();
         window.SPCC.ultimateFtHoFCombo({gfd: true});
         let pantheon = Game.Objects['Temple'].minigame;
@@ -103,7 +102,6 @@ while(true) {
 
         window.SPCC.nineQuadrillionClicks(); // For the achievements
         window.SPCC.nineQuadrillionWrinklers();
-        window.SPCC.nineQuadrillionAscensions();
         Game.elderWrath = 2;
 
         return Game.cookiesPs;
@@ -122,6 +120,14 @@ while(true) {
             break;
         }
     }
+
+    /* We purchased something!
+     * Let's use the current game state to boost ascension metrics,
+     * in particular the prestige level.
+     */
+    await page.evaluate(() => {
+        window.SPCC.nineQuadrillionAscensions();
+    });
 }
 
 console.log(await page.evaluate(cps => {
@@ -144,6 +150,16 @@ await writeSaveFile(page, './saves/sisyphus5-1.cki');
  * Dragon's Fortune and Radiant Appetite for getting more cookies,
  * and Earth Shatterer to power the buildings-as-reservoirs trick.
  */
+await page.evaluate(() => {
+    /* Because we'll keep losing "You"s due to Krumblor changing auras,
+     * its previous maximum purchase is no longer valid.
+     * So we simply get rid of all "You"s now;
+     * they will be purchased again after the first loop.
+     */
+    Game.Objects['You'].sacrifice(Game.Objects['You'].amount);
+    window.SPCC.roundOfPurchases({limitTowers: true, limitYous: true}); // Adds "You"s back
+});
+
 while(true) {
     cps = await page.evaluate(() => {
         Game.killBuffs();
@@ -179,9 +195,6 @@ while(true) {
 
         window.SPCC.nineQuadrillionClicks();
         window.SPCC.nineQuadrillionWrinklers();
-        window.SPCC.nineQuadrillionAscensions();
-        Game.elderWrath = 2;
-
         return Game.cookiesPs;
     });
 
@@ -201,6 +214,10 @@ while(true) {
             break;
         }
     }
+
+    await page.evaluate(() => {
+        window.SPCC.nineQuadrillionAscensions();
+    });
 }
 
 console.log(await page.evaluate(cps => {
@@ -258,7 +275,6 @@ while(true) {
         }
 
         window.SPCC.nineQuadrillionClicks();
-        window.SPCC.nineQuadrillionAscensions({krumblor: true, nastyGoblins: true});
         return Game.cookiesPs;
     });
 
@@ -276,6 +292,10 @@ while(true) {
             break;
         }
     }
+
+    await page.evaluate(() => {
+        window.SPCC.nineQuadrillionAscensions({krumblor: true, nastyGoblins: true});
+    });
 }
 
 console.log(await page.evaluate(cps => {
@@ -344,7 +364,6 @@ for(let i = 4; i <= 5; i++) {
             }
 
             window.SPCC.nineQuadrillionClicks();
-            window.SPCC.nineQuadrillionAscensions({krumblor: true, nastyGoblins: true});
             return Game.cookiesPs;
         });
 
@@ -378,6 +397,10 @@ for(let i = 4; i <= 5; i++) {
                 break;
             }
         }
+
+        await page.evaluate(() => {
+            window.SPCC.nineQuadrillionAscensions({krumblor: true, nastyGoblins: true});
+        });
     }
 
     console.log(await page.evaluate(([cps, i]) => {

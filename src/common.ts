@@ -961,7 +961,6 @@ function initBrowserUtilities() {
             if(pantheon) {
                 pantheon.slotGod(pantheon.gods['creation'], 0);
             }
-
             Game.CalculateGains(); // Updates Game.effs, after fillGardenWith
 
             let previousAmount = obj.amount;
@@ -994,14 +993,18 @@ function initBrowserUtilities() {
                 Game.dragonAura = (Game as any).dragonAurasBN['Earth Shatterer'].id;
                 Game.dragonAura2 = (Game as any).dragonAurasBN['Reality Bending'].id;
             }
-            Game.Objects['Farm'].minigame.harvestAll();
+            fillGardenWith({plant: 'meddleweed'}); // Clears the garden
             if(pantheon) {
                 pantheon.slotGod(pantheon.gods['creation'], -1);
             }
             if(options.nastyGoblins) {
                 Game.gainBuff('pixie misery', 60*60, 2);
             }
+            Game.CalculateGains();
 
+            /* OK, we don't actually sell it, we just calculate how much we'd get by selling it.
+             * But we continue onwards, and won't touch the current building again.
+             */
             reachableCookieAmount += cookiesAfterSelling(obj.id);
         }
 
