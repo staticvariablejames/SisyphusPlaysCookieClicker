@@ -212,7 +212,7 @@ while(true) {
                 buildingsOrder: order,
             });
 
-            // This step destroys CpC, so wwe needed to save it before
+            // This step destroys CpC, so we needed to save it before
         });
         if(!trick) {
             break;
