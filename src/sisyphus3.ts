@@ -324,6 +324,7 @@ await page.evaluate(() => {
 console.log(await page.evaluate(cpc => {
     return "Save 5: " +
            window.Beautify(Game.cookies) +
+           " (" + Game.cookies + ' = 2^' + Math.log2(Game.cookies) + ")" +
            " - CpC was " + window.Beautify(cpc) +
            ", factor till next power of two: " +
            window.SPCC.factorTillNextPowerOfTwo(cpc);
